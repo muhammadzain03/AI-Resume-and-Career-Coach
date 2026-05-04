@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a3a6e"/>
+      <stop offset="50%" stop-color="#1f5eff"/>
+      <stop offset="100%" stop-color="#18a999"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#7ed9ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#4db7ff" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="pulse" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7ed9ff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#1f5eff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Outer glow ring -->
+  <circle cx="60" cy="60" r="58" fill="url(#pulse)"/>
+
+  <!-- Main circle -->
+  <circle cx="60" cy="60" r="50" fill="url(#bg)"/>
+  <circle cx="60" cy="60" r="50" stroke="url(#glow)" stroke-width="2" fill="none" opacity="0.6"/>
+
+  <!-- Head -->
+  <circle cx="60" cy="42" r="16" fill="#e8f0fe" opacity="0.92"/>
+
+  <!-- Eyes -->
+  <circle cx="53" cy="40" r="2.5" fill="#1a3a6e"/>
+  <circle cx="67" cy="40" r="2.5" fill="#1a3a6e"/>
+  <circle cx="54" cy="39" r="0.8" fill="#fff"/>
+  <circle cx="68" cy="39" r="0.8" fill="#fff"/>
+
+  <!-- Smile -->
+  <path d="M54 47 Q60 52 66 47" stroke="#1a3a6e" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+
+  <!-- Body / shoulders -->
+  <path d="M36 78 Q36 64 60 62 Q84 64 84 78" fill="#e8f0fe" opacity="0.88"/>
+
+  <!-- AI circuit lines on body -->
+  <path d="M50 68 L50 74 L56 74" stroke="#1f5eff" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <path d="M70 68 L70 74 L64 74" stroke="#18a999" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <circle cx="50" cy="68" r="1.5" fill="#1f5eff" opacity="0.7"/>
+  <circle cx="70" cy="68" r="1.5" fill="#18a999" opacity="0.7"/>
+  <circle cx="60" cy="74" r="1.5" fill="#7ed9ff" opacity="0.8"/>
+
+  <!-- Headset -->
+  <path d="M40 38 Q40 24 60 22 Q80 24 80 38" stroke="#a5c8ff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <rect x="36" y="34" width="6" height="10" rx="3" fill="#a5c8ff" opacity="0.9"/>
+  <rect x="78" y="34" width="6" height="10" rx="3" fill="#a5c8ff" opacity="0.9"/>
+
+  <!-- Mic boom -->
+  <path d="M38 42 Q30 48 34 54" stroke="#a5c8ff" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <circle cx="34" cy="55" r="3" fill="#18a999" opacity="0.9"/>
+
+  <!-- Sound waves (right side) -->
+  <path d="M88 55 Q92 60 88 65" stroke="#7ed9ff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <path d="M92 52 Q98 60 92 68" stroke="#7ed9ff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.3"/>
+</svg>
