@@ -2,19 +2,20 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import ScrollReveal from "../components/ScrollReveal";
+import ProductFrame from "../components/ProductFrame";
 import Button from "../components/Button";
 
 const stagger = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } },
+  visible: { transition: { staggerChildren: 0.1 } },
 };
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
+  hidden: { opacity: 0, y: 24 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
   },
 };
 
@@ -49,6 +50,8 @@ const stats = [
   { value: "Real-time", label: "AI Interview Feedback" },
 ];
 
+const techStack = ["React", "Gemini", "Flask", "PostgreSQL"];
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { scrollYProgress } = useScroll();
@@ -59,44 +62,76 @@ const HomePage = () => {
 
   return (
     <div className="home">
-      {/* ── HERO ── */}
       <section className="home-hero">
         <motion.div className="home-orb home-orb--1" style={{ y: orbY1 }} />
         <motion.div className="home-orb home-orb--2" style={{ y: orbY2 }} />
         <motion.div className="home-grid-bg" style={{ y: gridY }} />
 
-        <motion.div
-          className="home-hero__content"
-          variants={stagger}
-          initial="hidden"
-          animate="visible"
-        >
-          <motion.div variants={fadeUp} className="home-hero__badge">
-            Resume &amp; Career Coach
+        <div className="home-hero__inner">
+          <motion.div
+            className="home-hero__copy"
+            variants={stagger}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.div variants={fadeUp} className="home-hero__badge">
+              <span className="home-hero__badge-dot" aria-hidden="true" />
+              Resume &amp; Career Coach
+            </motion.div>
+
+            <motion.h1 variants={fadeUp}>
+              Build smarter{" "}
+              <br />
+              resumes. <span className="home-hero__muted">Prepare</span>
+              <br />
+              <span className="home-hero__muted">sharper</span>{" "}
+              <span className="home-hero__accent">interviews.</span>
+            </motion.h1>
+
+            <motion.p variants={fadeUp} className="home-hero__desc">
+              Upload your resume, score it against any job description, surface
+              the skills you&apos;re missing, and rehearse with an AI
+              interviewer - in one place.
+            </motion.p>
+
+            <motion.div variants={fadeUp} className="home-hero__cta">
+              <Button className="btn--pill btn--hero" onClick={() => navigate("/signup")}>
+                Get started free
+                <span className="btn__arrow" aria-hidden="true">
+                  →
+                </span>
+              </Button>
+              <Button
+                className="btn--secondary btn--pill"
+                onClick={() => navigate("/app")}
+              >
+                Open dashboard
+              </Button>
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="home-hero__trust">
+              <div className="home-hero__trust-label">Built with</div>
+              <div className="home-hero__trust-row">
+                {techStack.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
+            </motion.div>
           </motion.div>
 
-          <motion.h1 variants={fadeUp}>
-            Build smarter resumes.
-            <span className="home-hero__sub">Prepare sharper interviews.</span>
-          </motion.h1>
-
-          <motion.p variants={fadeUp} className="home-hero__desc">
-            Upload your resume, compare it against real job descriptions,
-            surface missing skills, and practice with an AI interviewer
-            - all in one place.
-          </motion.p>
-
-          <motion.div variants={fadeUp} className="home-hero__cta">
-            <Button onClick={() => navigate("/signup")}>Get Started Free</Button>
-            <Button className="btn--secondary" onClick={() => navigate("/app")}>
-              Open Dashboard
-            </Button>
+          <motion.div
+            className="home-hero__visual"
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            transition={{ duration: 0.8, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <ProductFrame />
           </motion.div>
-        </motion.div>
+        </div>
       </section>
 
-      {/* ── FEATURES ── */}
-      <section className="home-section">
+      <section id="features" className="home-section">
         <ScrollReveal>
           <p className="home-section__eyebrow">What RCC does</p>
           <h2 className="home-section__title">
@@ -117,8 +152,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="home-section">
+      <section id="how-it-works" className="home-section">
         <ScrollReveal>
           <p className="home-section__eyebrow">How it works</p>
           <h2 className="home-section__title">
@@ -141,11 +175,10 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ── STATS ── */}
       <section className="home-section">
         <div className="home-stats">
           {stats.map((s, i) => (
-            <ScrollReveal key={i} delay={i * 0.15} scale>
+            <ScrollReveal key={s.label} delay={i * 0.15} scale>
               <div className="home-stat">
                 <span className="home-stat__value">{s.value}</span>
                 <span className="home-stat__label">{s.label}</span>
@@ -155,7 +188,6 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ── CLOSING CTA ── */}
       <section className="home-section home-cta-section">
         <ScrollReveal duration={0.9}>
           <h2 className="home-cta__title">Ready to sharpen your career?</h2>
