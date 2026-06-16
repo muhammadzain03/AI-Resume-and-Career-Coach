@@ -5,7 +5,7 @@ set "ROOT=%~dp0"
 cd /d "%ROOT%"
 
 echo ============================================
-echo   Cleaning ARCC project
+echo   Cleaning RCC project
 echo ============================================
 echo.
 
@@ -37,8 +37,8 @@ if exist "%ROOT%*.zip" (
     del /q "%ROOT%*.zip"
 )
 
-REM egg-info
-for /d /r "%ROOT%backend" %%d in (*.egg-info) do (
+REM egg-info (dir names like package.egg-info)
+for /f "delims=" %%d in ('dir /s /b /ad "%ROOT%backend\*.egg-info" 2^>nul') do (
     if exist "%%d" rd /s /q "%%d"
 )
 

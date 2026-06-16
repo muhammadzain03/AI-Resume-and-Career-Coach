@@ -25,6 +25,9 @@ services:
     tty: true
     depends_on:
       - backend
+    env_file:
+      - path: ./frontend/.env.local
+        required: false
     environment:
       REACT_APP_API_BASE: http://localhost:5000/api
 
@@ -37,7 +40,8 @@ services:
       MYSQL_DATABASE: arcc
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      # Directory mount (reliable on Windows; avoid single-file bind mounts)
+      - ./backend/database/init:/docker-entrypoint-initdb.d:ro
 
 volumes:
   mysql_data:

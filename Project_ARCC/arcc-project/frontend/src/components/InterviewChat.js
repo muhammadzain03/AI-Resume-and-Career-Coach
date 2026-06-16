@@ -303,7 +303,7 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
               </div>
             )}
           </div>
-          <p className="interview-host-name">ARCC Interview Coach</p>
+          <p className="interview-host-name">RCC Interview Coach</p>
           <p className="interview-host-status">
             {hostSpeaking
               ? "Speaking..."

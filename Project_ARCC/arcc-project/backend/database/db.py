@@ -9,7 +9,7 @@ def _get_pool():
     global _pool
     if _pool is None:
         _pool = pooling.MySQLConnectionPool(
-            pool_name="arcc_pool",
+            pool_name="rcc_pool",
             pool_size=5,
             host=Config.DB_HOST,
             port=Config.DB_PORT,

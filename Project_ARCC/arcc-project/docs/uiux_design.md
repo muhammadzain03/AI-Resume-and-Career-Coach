@@ -1,4 +1,4 @@
-# ARCC UI/UX Design: Navigation and Screens
+# RCC UI/UX Design: Navigation and Screens
 
 ## 1. Navigation Map
 

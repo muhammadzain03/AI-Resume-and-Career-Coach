@@ -1,21 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
     <linearGradient id="favBg" x1="8%" y1="8%" x2="92%" y2="92%">
-      <stop offset="0%" stop-color="#0f2b62" />
-      <stop offset="56%" stop-color="#1f5eff" />
-      <stop offset="100%" stop-color="#12958d" />
+      <stop offset="0%" stop-color="#064e3b" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#00d4aa" />
     </linearGradient>
     <linearGradient id="favArc" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#7ed9ff" />
-      <stop offset="100%" stop-color="#4db7ff" />
+      <stop offset="0%" stop-color="#6ee7b7" />
+      <stop offset="100%" stop-color="#34d399" />
     </linearGradient>
   </defs>
 
   <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#favBg)" />
-  <path
-    d="M16 49 28 15h7l12 34h-7.2l-2.7-7.8H25.6L22.8 49H16Zm11.8-14.2h7L31.3 24.6l-3.5 10.2Z"
+  <text
+    x="32"
+    y="38"
+    text-anchor="middle"
     fill="#fff"
-  />
+    font-size="20"
+    font-weight="700"
+    font-family="system-ui, sans-serif"
+    letter-spacing="0.05em"
+  >
+    RCC
+  </text>
   <path
     d="M51 23.5A10.5 10.5 0 1 0 51 40.5"
     fill="none"
@@ -26,7 +34,7 @@
   <path
     d="M48.2 27.8A6.8 6.8 0 1 0 48.2 36.2"
     fill="none"
-    stroke="#8ad9ff"
+    stroke="#a7f3d0"
     stroke-linecap="round"
     stroke-width="2.5"
   />
