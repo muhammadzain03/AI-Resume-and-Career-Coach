@@ -1,0 +1,255 @@
+<!--
+  RCC hero - redesigned to demonstrate the "Rezzy-grade" techniques in YOUR brand.
+  Stack-friendly: plain CSS + CSS variables (drops straight into your main.css world).
+  Swap the faux device UI for a real screenshot when you have one (see comment below).
+-->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    /* your existing dark tokens, plus two "warmth" additions */
+    --bg: #060807;
+    --surface: #0f1413;
+    --surface-2: #141a18;
+    --ink: #f0f0f0;
+    --ink-ivory: #f4efe3;          /* warm near-white for the display heading */
+    --ink-secondary: #b3b8b5;
+    --ink-muted: #6f7672;
+    --accent: #00d4aa;
+    --accent-soft: rgba(0, 212, 170, 0.14);
+    --accent-line: rgba(0, 212, 170, 0.28);
+    --line: rgba(255, 255, 255, 0.08);
+    --radius: 16px;
+    --radius-pill: 100px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: "Manrope", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ambient field: two soft radial glows, low and slow */
+  .field {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(60% 50% at 78% 18%, rgba(0,212,170,0.12), transparent 70%),
+      radial-gradient(50% 45% at 10% 90%, rgba(0,212,170,0.06), transparent 70%);
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+
+  /* ── NAV ── */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 26px 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.02em; }
+  .brand .mark {
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--accent); color: #022; font-size: 13px; font-weight: 800;
+  }
+  .nav-links { display: flex; gap: 30px; }
+  .nav-links a { color: var(--ink-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta {
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+    padding: 9px 20px; border-radius: var(--radius-pill); font: inherit; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: border-color .2s, background .2s;
+  }
+  .nav-cta:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+
+  /* ── HERO (asymmetric: text left, device right) ── */
+  .hero {
+    display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 40px;
+    align-items: center; padding: 56px 0 90px;
+  }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--accent); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    border: 1px solid var(--accent-line); background: var(--accent-soft);
+    padding: 7px 14px; border-radius: var(--radius-pill); margin-bottom: 26px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+
+  /* THE SIGNATURE MOVE: oversized, tight, left-aligned display type */
+  h1 {
+    margin: 0; font-weight: 800; letter-spacing: -0.035em; line-height: 0.96;
+    font-size: clamp(44px, 7vw, 86px); color: var(--ink-ivory);
+  }
+  h1 .muted { color: var(--ink-secondary); }
+  h1 .accent { color: var(--accent); }
+
+  .lead {
+    margin: 26px 0 0; max-width: 30ch; color: var(--ink-secondary);
+    font-size: clamp(15px, 1.4vw, 18px); line-height: 1.6;
+  }
+
+  .cta-row { display: flex; align-items: center; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--accent); color: #042; border: none;
+    padding: 14px 16px 14px 24px; border-radius: var(--radius-pill);
+    font: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+    transition: transform .18s ease, box-shadow .25s ease;
+    box-shadow: 0 8px 30px rgba(0,212,170,0.25);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 38px rgba(0,212,170,0.38); }
+  .btn-primary .arrow {
+    width: 28px; height: 28px; border-radius: 50%; background: #042; color: var(--accent);
+    display: grid; place-items: center; transition: transform .2s;
+  }
+  .btn-primary:hover .arrow { transform: translateX(3px); }
+  .btn-ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--line);
+    padding: 14px 24px; border-radius: var(--radius-pill); font: inherit; font-weight: 600;
+    font-size: 15px; cursor: pointer; transition: border-color .2s, background .2s;
+  }
+  .btn-ghost:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+
+  /* honest "credibility strip" - your stack, not fake customer logos */
+  .trust { margin-top: 46px; }
+  .trust__label { color: var(--ink-muted); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 14px; }
+  .trust__row { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; opacity: 0.78; }
+  .trust__row span { color: var(--ink-secondary); font-weight: 600; font-size: 14px; }
+
+  /* ── THE DEVICE: tilted in 3D, ambient glow behind ── */
+  .device-stage { perspective: 1600px; }
+  .device {
+    position: relative; border-radius: 18px; overflow: hidden;
+    border: 1px solid var(--line); background: var(--surface);
+    transform: rotateY(-14deg) rotateX(6deg) rotateZ(1deg);
+    transform-style: preserve-3d;
+    box-shadow:
+      -30px 40px 80px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(255,255,255,0.03) inset;
+    transition: transform .5s cubic-bezier(.22,1,.36,1);
+  }
+  .device-stage:hover .device { transform: rotateY(-7deg) rotateX(3deg) rotateZ(0); }
+  /* glow that bleeds out from behind the device */
+  .device::before {
+    content: ""; position: absolute; inset: -2px; z-index: -1; border-radius: 20px;
+    background: radial-gradient(120% 120% at 70% 0%, rgba(0,212,170,0.35), transparent 55%);
+    filter: blur(40px);
+  }
+
+  /* faux product UI -- replace this whole .device-ui block with <img src="your-screenshot.png"> */
+  .device-ui { padding: 18px; }
+  .ui-top { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .ui-dot { width: 10px; height: 10px; border-radius: 50%; background: #2a302e; }
+  .ui-title { margin-left: auto; color: var(--ink-muted); font-size: 12px; font-weight: 600; }
+  .ui-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .ui-score { display: flex; align-items: center; gap: 18px; margin-bottom: 16px; }
+  .ring {
+    width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center;
+    background:
+      radial-gradient(closest-side, var(--surface-2) 78%, transparent 79%),
+      conic-gradient(var(--accent) 87%, #232a28 0);
+    flex-shrink: 0;
+  }
+  .ring b { font-size: 20px; color: var(--ink); }
+  .ui-score__meta h4 { margin: 0 0 4px; font-size: 15px; }
+  .ui-score__meta p { margin: 0; color: var(--ink-muted); font-size: 12px; }
+  .ui-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .ui-row:first-of-type { border-top: none; }
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px; }
+  .pill--ok { color: var(--accent); background: var(--accent-soft); }
+  .pill--gap { color: #ffc14d; background: rgba(255,193,77,0.12); }
+  .ui-row span:nth-child(2) { color: var(--ink-secondary); }
+  .ui-row span:last-child { margin-left: auto; color: var(--ink-muted); }
+
+  /* entrance */
+  .reveal { opacity: 0; transform: translateY(24px); animation: up .8s cubic-bezier(.22,1,.36,1) forwards; }
+  .reveal:nth-child(2){animation-delay:.08s} 
+  .d1{animation-delay:.06s}.d2{animation-delay:.14s}.d3{animation-delay:.22s}.d4{animation-delay:.3s}.d5{animation-delay:.4s}
+  @keyframes up { to { opacity: 1; transform: none; } }
+
+  @media (max-width: 880px) {
+    .hero { grid-template-columns: 1fr; gap: 56px; padding: 30px 0 60px; }
+    .nav-links { display: none; }
+    .device { transform: rotateY(-8deg) rotateX(4deg); }
+    h1 { font-size: clamp(40px, 12vw, 60px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { animation: none; opacity: 1; transform: none; }
+    .device, .btn-primary { transition: none; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+
+<div class="field"></div>
+
+<div class="wrap">
+  <nav>
+    <div class="brand"><span class="mark">R</span> RCC</div>
+    <div class="nav-links">
+      <a href="#">Features</a><a href="#">How it works</a><a href="#">Pricing</a><a href="#">FAQ</a>
+    </div>
+    <button class="nav-cta">Sign in</button>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow reveal d1"><span class="dot"></span> Resume &amp; Career Coach</div>
+      <h1 class="reveal d2">
+        Build smarter<br />
+        resumes. <span class="muted">Prepare</span><br />
+        <span class="muted">sharper</span> <span class="accent">interviews.</span>
+      </h1>
+      <p class="lead reveal d3">
+        Upload your resume, score it against any job description, surface the
+        skills you're missing, and rehearse with an AI interviewer - in one place.
+      </p>
+      <div class="cta-row reveal d4">
+        <button class="btn-primary">
+          Get started free
+          <span class="arrow" aria-hidden="true">→</span>
+        </button>
+        <button class="btn-ghost">Open dashboard</button>
+      </div>
+
+      <div class="trust reveal d5">
+        <div class="trust__label">Built with</div>
+        <div class="trust__row">
+          <span>React</span><span>Gemini</span><span>Flask</span><span>PostgreSQL</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGNATURE: tilted live-analysis device. Swap .device-ui for a real screenshot. -->
+    <div class="device-stage reveal d4">
+      <div class="device">
+        <div class="device-ui">
+          <div class="ui-top">
+            <span class="ui-dot"></span><span class="ui-dot"></span><span class="ui-dot"></span>
+            <span class="ui-title">analysis · senior frontend engineer</span>
+          </div>
+          <div class="ui-card">
+            <div class="ui-score">
+              <div class="ring"><b>87</b></div>
+              <div class="ui-score__meta">
+                <h4>Strong match</h4>
+                <p>ATS-ready · 4 quick wins to reach 95</p>
+              </div>
+            </div>
+            <div class="ui-row"><span class="pill pill--ok">MATCH</span><span>React, TypeScript, testing</span><span>core</span></div>
+            <div class="ui-row"><span class="pill pill--gap">GAP</span><span>GraphQL not found in resume</span><span>add</span></div>
+            <div class="ui-row"><span class="pill pill--gap">GAP</span><span>Quantify impact in 2 bullets</span><span>fix</span></div>
+            <div class="ui-row"><span class="pill pill--ok">MATCH</span><span>CI/CD, Docker</span><span>core</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

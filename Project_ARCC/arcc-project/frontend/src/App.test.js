@@ -46,13 +46,13 @@ describe("App", () => {
     localStorage.clear();
   });
 
-  it("renders the landing page with floating nav links", async () => {
+  it("renders the landing page with site nav links", async () => {
     view = renderApp("/");
 
     expect(document.body.textContent).toContain("Build smarter resumes");
 
     const navLinks = Array.from(
-      document.querySelectorAll(".floating-nav__links a"),
+      document.querySelectorAll(".site-nav__links a"),
     ).map((link) => ({
       text: link.textContent.trim(),
       href: link.getAttribute("href"),
@@ -60,8 +60,13 @@ describe("App", () => {
 
     expect(navLinks).toEqual([
       { text: "Home", href: "/" },
-      { text: "Sign In", href: "/login" },
+      { text: "Features", href: "/#features" },
+      { text: "How it works", href: "/#how-it-works" },
     ]);
+
+    expect(document.querySelector(".site-nav__cta")?.textContent).toContain(
+      "Sign in",
+    );
   });
 
   it("redirects unauthenticated users away from the dashboard", async () => {
