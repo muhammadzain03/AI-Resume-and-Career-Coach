@@ -96,7 +96,7 @@ def _jd_questions(jd: str, role: str) -> list[str]:
     return [opener] + list(QUESTION_BANK)
 
 
-# ─── Public API ───────────────────────────────────────────────
+# -- Public API ------------------------
 
 
 def create_session(jd: str, role: Optional[str] = None) -> dict:
