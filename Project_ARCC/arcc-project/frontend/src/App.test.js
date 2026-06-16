@@ -1,39 +1,93 @@
 import React from "react";
+import { MemoryRouter } from "react-router-dom";
 import App from "./App";
+import { AuthProvider } from "./context/AuthContext";
 import { renderWithRoot } from "./testUtils/renderWithRoot";
+
+jest.mock("./services/api", () => ({
+  getMe: jest.fn(),
+  clearAuthSession: jest.fn(),
+  setAuthSession: jest.fn(),
+  getStoredUser: jest.fn(() => null),
+  loginUser: jest.fn(),
+  registerUser: jest.fn(),
+  googleAuth: jest.fn(),
+  uploadResume: jest.fn(),
+  runAnalysis: jest.fn(),
+  getAnalysis: jest.fn(),
+  getHistory: jest.fn().mockResolvedValue({ history: [] }),
+}));
+
+const { getMe, getStoredUser } = require("./services/api");
+
+function renderApp(initialEntry = "/") {
+  return renderWithRoot(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
+}
 
 describe("App", () => {
   let view;
+
+  beforeEach(() => {
+    getMe.mockReset();
+    getStoredUser.mockReturnValue(null);
+  });
 
   afterEach(() => {
     if (view) {
       view.unmount();
       view = null;
     }
-    window.history.pushState({}, "", "/");
+    localStorage.clear();
   });
 
-  it("renders the shared layout and the matching route content", () => {
-    window.history.pushState({}, "", "/job");
+  it("renders the landing page with floating nav links", async () => {
+    view = renderApp("/");
 
-    view = renderWithRoot(<App />);
+    expect(document.body.textContent).toContain("Build smarter resumes");
 
-    expect(document.body.textContent).toContain("ARCC - AI Resume and Career Coach");
-    expect(document.body.textContent).toContain("Enter Job Details");
-    expect(document.body.textContent).toContain("ARCC Project");
-
-    const links = Array.from(document.querySelectorAll("aside a")).map((link) => ({
-      text: link.textContent,
+    const navLinks = Array.from(
+      document.querySelectorAll(".floating-nav__links a"),
+    ).map((link) => ({
+      text: link.textContent.trim(),
       href: link.getAttribute("href"),
     }));
 
-    expect(links).toEqual([
+    expect(navLinks).toEqual([
       { text: "Home", href: "/" },
-      { text: "Dashboard", href: "/dashboard" },
-      { text: "Upload Resume", href: "/upload" },
-      { text: "Job Description", href: "/job" },
-      { text: "Results", href: "/history" },
-      { text: "Interview", href: "/interview" },
+      { text: "Sign In", href: "/login" },
     ]);
+  });
+
+  it("redirects unauthenticated users away from the dashboard", async () => {
+    getMe.mockRejectedValueOnce(new Error("unauthorized"));
+
+    view = renderApp("/app");
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(document.body.textContent).toContain("Welcome back to RCC");
+  });
+
+  it("renders the dashboard when authenticated", async () => {
+    getStoredUser.mockReturnValue({
+      id: 1,
+      email: "user@example.com",
+      email_verified: true,
+    });
+    getMe.mockResolvedValueOnce({
+      user: { id: 1, email: "user@example.com", email_verified: true, name: "User" },
+    });
+
+    view = renderApp("/app");
+
+    await new Promise((r) => setTimeout(r, 80));
+
+    expect(document.body.textContent).toContain("Overview");
   });
 });

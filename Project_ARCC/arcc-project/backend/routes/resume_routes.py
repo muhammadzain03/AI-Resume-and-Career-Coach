@@ -2,7 +2,9 @@ import logging
 import os
 import tempfile
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
 from database.db import get_conn
+from auth_utils import current_user_id
 from services.resume_parser import parse_resume_file
 
 logger = logging.getLogger(__name__)
@@ -14,9 +16,10 @@ MAX_FILE_SIZE = 4 * 1024 * 1024
 
 
 @resume_bp.route("/upload", methods=["POST"])
+@jwt_required()
 def upload_resume():
     file = request.files.get("resume")
-    user_id = request.form.get("user_id")
+    user_id = current_user_id()
 
     if not file:
         return jsonify({"error": "No file uploaded"}), 400
@@ -27,12 +30,7 @@ def upload_resume():
     if ext not in ALLOWED_EXTENSIONS:
         return jsonify({"error": "Unsupported file type. Use PDF, DOCX, or TXT."}), 400
 
-    parsed_user_id = None
-    if user_id not in (None, ""):
-        try:
-            parsed_user_id = int(user_id)
-        except (ValueError, TypeError):
-            return jsonify({"error": "user_id must be an integer"}), 400
+    parsed_user_id = user_id
 
     fd, temp_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
@@ -84,7 +82,9 @@ def upload_resume():
 
 
 @resume_bp.route("/<int:resume_id>", methods=["GET"])
+@jwt_required()
 def get_resume(resume_id):
+    user_id = current_user_id()
     conn, cur = None, None
     try:
         conn = get_conn()
@@ -96,6 +96,8 @@ def get_resume(resume_id):
         )
         row = cur.fetchone()
         if not row:
+            return jsonify({"error": "resume not found"}), 404
+        if row["user_id"] is not None and row["user_id"] != user_id:
             return jsonify({"error": "resume not found"}), 404
 
         return jsonify({

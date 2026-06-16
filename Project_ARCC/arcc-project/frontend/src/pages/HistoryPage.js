@@ -1,69 +1,75 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { getHistory } from "../services/api";
+import ScrollReveal from "../components/ScrollReveal";
 import Card from "../components/Card";
 
-const getScoreColor = (score) => {
-  if (score >= 75) return "#4CAF50";   // green
-  if (score >= 50) return "#FFC107";   // yellow
-  return "#F44336";                   // red
-};
-
 const HistoryPage = () => {
-  const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchHistory() {
+    (async () => {
       try {
-        const res = await getHistory(0); // or real user_id later
+        const res = await getHistory();
         setHistory(res.history || []);
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
-    }
-
-    fetchHistory();
+    })();
   }, []);
 
-  if (loading) return <p>Loading history...</p>;
-
-  if (!history.length) {
-    return <p>No previous analyses found.</p>;
+  if (loading) {
+    return (
+      <div className="page">
+        <p className="page-intro">Loading history...</p>
+      </div>
+    );
   }
 
   return (
     <div className="page">
-      <h1>Past Analyses</h1>
+      <ScrollReveal>
+        <p className="eyebrow">History</p>
+        <h1>Past Analyses</h1>
+      </ScrollReveal>
 
-      <div className="history-list">
-        {history.map((item) => (
-          <Card
-            key={item.analysis_id}
-            className="history-card"
-            onClick={() => navigate(`/results/${item.analysis_id}`)}
-          >
-            <h3>{item.job_title || "Untitled Role"}</h3>
-
-            <p className="history-meta">
-              Resume: {item.filename}
-            </p>
-
-            <p className="history-score"
-                style={{ color: getScoreColor(item.match_score) }}
+      {!history.length ? (
+        <ScrollReveal delay={0.1}>
+          <div className="dash-empty">
+            <h2>No analyses yet</h2>
+            <p>Run your first resume analysis to see results here.</p>
+          </div>
+        </ScrollReveal>
+      ) : (
+        <ScrollReveal delay={0.1}>
+          <div className="history-list">
+            {history.map((item) => (
+              <Card key={item.analysis_id} className="history-card">
+                <h3>{item.job_title || "Untitled Role"}</h3>
+                <p className="history-meta">Resume: {item.filename}</p>
+                <p
+                  className="history-score"
+                  style={{
+                    color:
+                      item.match_score >= 75
+                        ? "var(--score-high)"
+                        : item.match_score >= 50
+                        ? "var(--score-mid)"
+                        : "var(--score-low)",
+                  }}
                 >
-                Score: {item.match_score}%
-            </p>
-
-            <p className="history-date">
-              {new Date(item.created_at).toLocaleString()}
-            </p>
-          </Card>
-        ))}
-      </div>
+                  Score: {item.match_score}%
+                </p>
+                <p className="history-date">
+                  {new Date(item.created_at).toLocaleString()}
+                </p>
+              </Card>
+            ))}
+          </div>
+        </ScrollReveal>
+      )}
     </div>
   );
 };

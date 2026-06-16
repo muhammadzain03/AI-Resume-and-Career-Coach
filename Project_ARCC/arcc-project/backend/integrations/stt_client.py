@@ -1,8 +1,8 @@
 """
-Speech-to-text stub (Phase 5 — STT later).
+Speech-to-text stub (Phase 5 - STT later).
 
 Pass-through for now. Wire Whisper / Google STT / etc. when ready.
-Browser Web Speech API is a good first option — send transcript text straight to /answer.
+Browser Web Speech API is a good first option - send transcript text straight to /answer.
 """
 
 import logging
@@ -19,7 +19,7 @@ def transcribe(audio_bytes: bytes, mime_type: str = "audio/webm") -> dict:
     """
     _ = mime_type  # reserved for real STT
     _ = len(audio_bytes or b"")
-    logger.warning("STT transcribe called but no provider is configured — empty text")
+    logger.warning("STT transcribe called but no provider is configured - empty text")
     return {
         "text": "",
         "provider": "stub",

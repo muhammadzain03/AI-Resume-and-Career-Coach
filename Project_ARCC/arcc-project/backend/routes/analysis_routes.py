@@ -1,8 +1,10 @@
 import logging
 
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
 
 from database.db import get_conn
+from auth_utils import current_user_id
 from integrations.llm_client import (
     analyze_resume_job,
     pack_analysis_for_db,
@@ -40,6 +42,7 @@ def analysis_health():
     return jsonify({"status": "ok", "module": "analysis"})
 
 @analysis_bp.route("/run", methods=["POST"])
+@jwt_required()
 def run_analysis():
     """
     Runs resume vs job analysis.
@@ -57,7 +60,7 @@ def run_analysis():
 
     resume_id = data.get("resume_id")
     job_description = (data.get("job_description") or "").strip()
-    user_id = data.get("user_id")
+    parsed_user_id = current_user_id()
 
     if resume_id in (None, "") or not job_description:
         return jsonify({"error": "resume_id and job_description are required"}), 400
@@ -67,25 +70,20 @@ def run_analysis():
     except (TypeError, ValueError):
         return jsonify({"error": "resume_id must be an integer"}), 400
 
-    parsed_user_id = None
-    if user_id not in (None, ""):
-        try:
-            parsed_user_id = int(user_id)
-        except (TypeError, ValueError):
-            return jsonify({"error": "user_id must be an integer"}), 400
-
     conn, cur = None, None
     try:
         conn = get_conn()
         cur = conn.cursor(dictionary=True)
 
         cur.execute(
-            "SELECT id, text_content FROM resumes WHERE id=%s",
+            "SELECT id, text_content, user_id FROM resumes WHERE id=%s",
             (resume_id,),
         )
         resume = cur.fetchone()
 
         if not resume:
+            return jsonify({"error": "resume not found"}), 404
+        if resume.get("user_id") is not None and resume["user_id"] != parsed_user_id:
             return jsonify({"error": "resume not found"}), 404
 
         raw_resume = (resume.get("text_content") or "").strip()
@@ -127,6 +125,7 @@ def run_analysis():
             "resume_id": resume_id,
             "job_id": job_id,
             "match_score": payload["match_score"],
+            "score_breakdown": payload.get("score_breakdown", {}),
             "matched_skills": payload["matched_skills"],
             "missing_skills": payload["missing_skills"],
             "suggestions": payload["suggestions"],
@@ -148,7 +147,9 @@ def run_analysis():
             conn.close()
 
 @analysis_bp.route("/<int:analysis_id>", methods=["GET"])
+@jwt_required()
 def get_analysis(analysis_id):
+    user_id = current_user_id()
     conn, cur = None, None
     try:
         conn = get_conn()
@@ -157,9 +158,10 @@ def get_analysis(analysis_id):
         cur.execute(
             """
             SELECT ar.id, ar.resume_id, ar.job_id, ar.match_score, ar.suggestions,
-                   jd.description
+                   jd.description, r.user_id AS resume_user_id
             FROM analysis_results ar
             LEFT JOIN job_descriptions jd ON jd.id = ar.job_id
+            LEFT JOIN resumes r ON r.id = ar.resume_id
             WHERE ar.id = %s
             """,
             (analysis_id,),
@@ -167,6 +169,8 @@ def get_analysis(analysis_id):
 
         row = cur.fetchone()
         if not row:
+            return jsonify({"error": "analysis not found"}), 404
+        if row.get("resume_user_id") is not None and row["resume_user_id"] != user_id:
             return jsonify({"error": "analysis not found"}), 404
 
         unpacked = unpack_analysis_from_db(row.get("suggestions"))
@@ -176,6 +180,7 @@ def get_analysis(analysis_id):
             "resume_id": row["resume_id"],
             "job_id": row["job_id"],
             "match_score": row["match_score"],
+            "score_breakdown": unpacked.get("score_breakdown", {}),
             "job_description": row.get("description") or "",
             "matched_skills": unpacked["matched_skills"],
             "missing_skills": unpacked["missing_skills"],
@@ -193,7 +198,9 @@ def get_analysis(analysis_id):
             conn.close()
 
 @analysis_bp.route("/history", methods=["GET"])
+@jwt_required()
 def get_history():
+    user_id = current_user_id()
     """
     Demo-friendly history endpoint (no user filtering).
 
@@ -239,10 +246,11 @@ def get_history():
             FROM analysis_results ar
             JOIN resumes r ON r.id = ar.resume_id
             JOIN job_descriptions jd ON jd.id = ar.job_id
+            WHERE r.user_id = %s
             ORDER BY ar.created_at DESC
             LIMIT %s
             """,
-            (limit,),
+            (user_id, limit),
         )
 
         rows = cur.fetchall()

@@ -1,5 +1,6 @@
 frontend/node_modules/
 frontend/build/
+frontend/coverage/
 backend/__pycache__/
 backend/**/*.pyc
 **/__pycache__/
@@ -10,7 +11,6 @@ backend/**/*.pyc
 **/*.egg-info/
 **/.env
 **/.env.*
-!**/.env.example
 *.log
 .DS_Store
 Thumbs.db

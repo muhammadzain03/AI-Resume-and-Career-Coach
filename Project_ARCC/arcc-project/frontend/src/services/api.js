@@ -1,68 +1,172 @@
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
 
-async function handleResponse(response) {
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `HTTP ${response.status}`);
+const ACCESS_KEY = "rcc_access_token";
+const REFRESH_KEY = "rcc_refresh_token";
+const USER_KEY = "rcc_user";
+
+export function getAccessToken() {
+  return localStorage.getItem(ACCESS_KEY);
+}
+
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_KEY);
+}
+
+export function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
-  return response.json();
+}
+
+export function setAuthSession({ access_token, refresh_token, user }) {
+  if (access_token) localStorage.setItem(ACCESS_KEY, access_token);
+  if (refresh_token) localStorage.setItem(REFRESH_KEY, refresh_token);
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function clearAuthSession() {
+  localStorage.removeItem(ACCESS_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+async function parseResponse(response) {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(data.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function refreshAccessToken() {
+  const refresh = getRefreshToken();
+  if (!refresh) return false;
+
+  const response = await fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${refresh}` },
+  });
+
+  if (!response.ok) {
+    clearAuthSession();
+    return false;
+  }
+
+  const data = await response.json();
+  if (data.access_token) {
+    localStorage.setItem(ACCESS_KEY, data.access_token);
+    return true;
+  }
+  return false;
+}
+
+export async function authFetch(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  if (response.status === 401 && getRefreshToken()) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      headers.Authorization = `Bearer ${getAccessToken()}`;
+      response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    }
+  }
+
+  return parseResponse(response);
+}
+
+export async function registerUser(name, email, password) {
+  const data = await authFetch("/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+  setAuthSession(data);
+  return data;
+}
+
+export async function loginUser(email, password) {
+  const response = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await parseResponse(response);
+  setAuthSession(data);
+  return data;
+}
+
+export async function googleAuth(credential) {
+  const data = await authFetch("/auth/google", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential }),
+  });
+  setAuthSession(data);
+  return data;
+}
+
+export async function getMe() {
+  return authFetch("/auth/me");
+}
+
+export async function verifyEmail(token) {
+  const response = await fetch(`${API_BASE}/auth/verify/${encodeURIComponent(token)}`);
+  return parseResponse(response);
 }
 
 export async function uploadResume(file) {
   const formData = new FormData();
   formData.append("resume", file);
-
-  const response = await fetch(`${API_BASE}/resume/upload`, {
-    method: "POST",
-    body: formData,
-  });
-
-  return handleResponse(response);
+  return authFetch("/resume/upload", { method: "POST", body: formData });
 }
 
-export async function runAnalysis(resumeId, jobDescription, userId = null) {
-  const response = await fetch(`${API_BASE}/analysis/run`, {
+export async function runAnalysis(resumeId, jobDescription) {
+  return authFetch("/analysis/run", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resume_id: resumeId, job_description: jobDescription, user_id: userId }),
+    body: JSON.stringify({ resume_id: resumeId, job_description: jobDescription }),
   });
-  return handleResponse(response);
 }
 
 export async function getAnalysis(analysisId) {
-  const response = await fetch(`${API_BASE}/analysis/${analysisId}`);
-  return handleResponse(response);
+  return authFetch(`/analysis/${analysisId}`);
 }
 
-export async function getHistory(userId = null, limit = 20) {
-  const params = new URLSearchParams({ user_id: userId, limit });
-  const response = await fetch(`${API_BASE}/analysis/history?${params}`);
-  return handleResponse(response);
+export async function getHistory(limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return authFetch(`/analysis/history?${params}`);
 }
 
 export async function startInterview(jobDescription, role = "") {
-  const response = await fetch(`${API_BASE}/interview/start`, {
+  return authFetch("/interview/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ job_description: jobDescription, role }),
   });
-  return handleResponse(response);
 }
 
 export async function submitAnswer(sessionId, answer) {
-  const response = await fetch(`${API_BASE}/interview/answer`, {
+  return authFetch("/interview/answer", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, answer }),
   });
-  return handleResponse(response);
 }
 
 export async function endInterview(sessionId) {
-  const response = await fetch(`${API_BASE}/interview/end`, {
+  return authFetch("/interview/end", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId }),
   });
-  return handleResponse(response);
 }

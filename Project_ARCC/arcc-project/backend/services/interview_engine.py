@@ -36,7 +36,7 @@ QUESTION_BANK = [
 ]
 
 SYSTEM_PROMPT = (
-    "You are a professional, friendly interview coach named ARCC. "
+    "You are a professional, friendly interview coach named RCC. "
     "You are conducting a mock interview for the candidate.\n\n"
     "RULES:\n"
     "- Ask ONE question at a time. Keep questions concise (1-2 sentences).\n"
@@ -44,13 +44,13 @@ SYSTEM_PROMPT = (
     "then ask the next question.\n"
     "- Mix behavioral, situational, and role-specific questions based on the job description.\n"
     "- Adapt follow-up questions based on the candidate's answers.\n"
-    "- Be warm and professional — this is coaching, not grilling.\n"
+    "- Be warm and professional - this is coaching, not grilling.\n"
     "- After {max_q} questions, wrap up with a brief overall summary and tips.\n\n"
-    "RESPONSE FORMAT — always reply with this exact JSON structure:\n"
+    "RESPONSE FORMAT - always reply with this exact JSON structure:\n"
     '{{"feedback": "your feedback on their answer (empty string for first question)", '
     '"question": "your next question (empty string when interview is complete)", '
     '"complete": false, '
-    '"summary": "only populated when complete is true — 3-4 sentence overall assessment"}}\n\n'
+    '"summary": "only populated when complete is true - 3-4 sentence overall assessment"}}\n\n'
     "JOB DESCRIPTION:\n{jd}\n\n"
     "ROLE: {role}"
 ).replace("{max_q}", str(_MAX_QUESTIONS))
@@ -274,7 +274,7 @@ def _generate_feedback(question: str, answer: str) -> str:
         )
     if len(answer) < 80:
         return (
-            "Good start. Consider adding more detail — a concrete example or measurable "
+            "Good start. Consider adding more detail - a concrete example or measurable "
             "outcome strengthens your answer."
         )
     if any(

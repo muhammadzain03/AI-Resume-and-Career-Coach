@@ -1,11 +1,12 @@
 """
-Interview API (Phase 5 — F-07).
+Interview API (Phase 5 - F-07).
 
 POST /start, /answer, /end, /transcribe are registered before /<session_id>
 so names like "end" are not treated as UUIDs on GET.
 """
 
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required
 
 from integrations.stt_client import transcribe
 from services.interview_engine import create_session, end_session, get_next, get_session
@@ -19,6 +20,7 @@ def interview_health():
 
 
 @interview_bp.route("/start", methods=["POST"])
+@jwt_required()
 def start_interview():
     """
     JSON: job_description (required), role (optional)
@@ -36,6 +38,7 @@ def start_interview():
 
 
 @interview_bp.route("/answer", methods=["POST"])
+@jwt_required()
 def submit_answer():
     """
     JSON: session_id, answer
@@ -60,8 +63,9 @@ def submit_answer():
 
 
 @interview_bp.route("/end", methods=["POST"])
+@jwt_required()
 def end_interview():
-    """JSON: session_id — drops session and returns summary."""
+    """JSON: session_id - drops session and returns summary."""
     data = request.get_json(silent=True) or {}
     session_id = (data.get("session_id") or "").strip()
 
@@ -77,8 +81,9 @@ def end_interview():
 
 
 @interview_bp.route("/transcribe", methods=["POST"])
+@jwt_required()
 def transcribe_audio():
-    """multipart field 'audio' — stub returns empty text until STT is wired."""
+    """multipart field 'audio' - stub returns empty text until STT is wired."""
     audio_file = request.files.get("audio")
 
     if not audio_file:
@@ -92,6 +97,7 @@ def transcribe_audio():
 
 
 @interview_bp.route("/<session_id>", methods=["GET"])
+@jwt_required()
 def get_interview(session_id):
     """GET session state for refresh."""
     result = get_session(session_id)
