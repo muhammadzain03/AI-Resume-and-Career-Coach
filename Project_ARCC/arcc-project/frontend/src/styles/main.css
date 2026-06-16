@@ -1,8 +1,8 @@
-/* ═══════════════════════════════════════════
+/* ----------------------
    RCC - Design System
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
-/* ── Theme Variables ── */
+/* - Theme Variables - */
 
 :root {
   --bg: #f5f5f5;
@@ -70,7 +70,7 @@
   --cat-general: #94a3b8;
 }
 
-/* ── Reset & Base ── */
+/* - Reset & Base - */
 
 *,
 *::before,
@@ -120,11 +120,11 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    LAYOUTS
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
-/* ── Public Layout (Landing, Login, Signup) ── */
+/* - Public Layout (Landing, Login, Signup) - */
 
 .public-layout {
   min-height: 100vh;
@@ -136,7 +136,7 @@ textarea:focus-visible {
   flex: 1;
 }
 
-/* ── Site Navbar ── */
+/* - Site Navbar - */
 
 .site-header {
   position: relative;
@@ -282,7 +282,7 @@ textarea:focus-visible {
   color: var(--accent);
 }
 
-/* ── Dashboard Layout ── */
+/* - Dashboard Layout - */
 
 .dash-layout {
   display: flex;
@@ -437,7 +437,7 @@ textarea:focus-visible {
   overflow-y: auto;
 }
 
-/* ── Footer ── */
+/* - Footer - */
 
 .footer {
   text-align: center;
@@ -447,11 +447,11 @@ textarea:focus-visible {
   border-top: 1px solid var(--line);
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    COMPONENTS
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
-/* ── Button ── */
+/* - Button - */
 
 .btn {
   position: relative;
@@ -583,7 +583,7 @@ textarea:focus-visible {
   transform: translateX(3px);
 }
 
-/* ── Card ── */
+/* - Card - */
 
 .card {
   border: 1px solid var(--line);
@@ -601,7 +601,7 @@ textarea:focus-visible {
   box-shadow: none;
 }
 
-/* ── Input & Textarea ── */
+/* - Input & Textarea - */
 
 .input-group {
   margin-bottom: 0.75rem;
@@ -649,7 +649,7 @@ textarea:focus-visible {
   outline: none;
 }
 
-/* ── File Input ── */
+/* - File Input - */
 
 .file-input {
   display: flex;
@@ -675,7 +675,7 @@ textarea:focus-visible {
   max-width: 200px;
 }
 
-/* ── Progress Bar ── */
+/* - Progress Bar - */
 
 .upload-progress-wrap {
   margin-bottom: 0.5rem;
@@ -696,7 +696,7 @@ textarea:focus-visible {
   border-radius: 999px;
 }
 
-/* ── Status & Errors ── */
+/* - Status & Errors - */
 
 .status-text {
   margin: 0.4rem 0;
@@ -729,7 +729,7 @@ textarea:focus-visible {
   margin-top: 0.5rem;
 }
 
-/* ── Chips ── */
+/* - Chips - */
 
 .chip-container {
   display: flex;
@@ -751,7 +751,7 @@ textarea:focus-visible {
   word-break: break-word;
 }
 
-/* ── Score ── */
+/* - Score - */
 
 .score-wrapper {
   text-align: center;
@@ -788,7 +788,7 @@ textarea:focus-visible {
   color: var(--ink-muted);
 }
 
-/* ── RCC Logo ── */
+/* - RCC Logo - */
 
 .rcc-logo {
   display: inline-flex;
@@ -819,7 +819,7 @@ textarea:focus-visible {
   color: var(--ink-secondary);
 }
 
-/* ── Theme Toggle ── */
+/* - Theme Toggle - */
 
 .theme-toggle {
   display: inline-flex;
@@ -874,9 +874,9 @@ textarea:focus-visible {
   line-height: 1;
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    PAGE SHARED
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
 .page {
   animation: fade-in 250ms ease;
@@ -916,7 +916,7 @@ textarea:focus-visible {
   margin-bottom: 1rem;
 }
 
-/* ── Score Breakdown ── */
+/* - Score Breakdown - */
 
 .score-breakdown-card {
   margin-bottom: 1rem;
@@ -974,7 +974,7 @@ textarea:focus-visible {
   font-family: "Space Grotesk", "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
-/* ── Suggestions Section ── */
+/* - Suggestions Section - */
 
 .suggestions-section {
   margin-top: 0.5rem;
@@ -1136,9 +1136,9 @@ textarea:focus-visible {
   border-top: 1px solid var(--line);
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    HOMEPAGE - CINEMATIC
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
 .home {
   overflow: hidden;
@@ -1607,9 +1607,9 @@ textarea:focus-visible {
   font-size: 0.92rem;
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    AUTH PAGES
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
 .auth-page {
   display: flex;
@@ -1747,11 +1747,11 @@ textarea:focus-visible {
   text-decoration: underline;
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    DASHBOARD PAGES
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
-/* ── Overview Stats ── */
+/* - Overview Stats - */
 
 .dash-stats {
   display: grid;
@@ -1802,7 +1802,7 @@ textarea:focus-visible {
   font-size: 0.88rem;
 }
 
-/* ── Quick Actions ── */
+/* - Quick Actions - */
 
 .dash-quick-actions {
   display: grid;
@@ -1830,7 +1830,7 @@ textarea:focus-visible {
   font-size: 0.82rem;
 }
 
-/* ── History List ── */
+/* - History List - */
 
 .history-list {
   display: grid;
@@ -1863,7 +1863,7 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
-/* ── Analyze Page ── */
+/* - Analyze Page - */
 
 .analyze-page {
   animation: fade-in 250ms ease;
@@ -1910,9 +1910,9 @@ textarea:focus-visible {
   font-size: 1.35rem;
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    INTERVIEW
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
 .interview-page {
   display: flex;
@@ -2276,18 +2276,18 @@ textarea:focus-visible {
   100% { transform: scale(1.35); opacity: 0; }
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    ANIMATIONS
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ═══════════════════════════════════════════
+/* ----------------------
    RESPONSIVE
-   ═══════════════════════════════════════════ */
+   ---------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   *,

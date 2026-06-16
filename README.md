@@ -23,26 +23,26 @@ A full-stack web application that helps job seekers optimize their resumes, prac
 
 ```
 Project_ARCC/arcc-project/
-├── frontend/
-│   ├── src/
-│   │   ├── pages/          Home, auth, dashboard pages
-│   │   ├── components/     Layouts, UI, InterviewChat
-│   │   ├── context/        AuthContext
-│   │   ├── services/       api.js (JWT client)
-│   │   ├── utils/          validation.js
-│   │   └── styles/         main.css
-│   └── public/
-├── backend/
-│   ├── routes/             auth, resume, analysis, interview
-│   ├── services/           business logic + email
-│   ├── database/
-│   │   ├── init/01-schema.sql   ← single canonical schema
-│   │   ├── migrate_auth.py      ← upgrade old DBs only
-│   │   └── db.py
-│   └── config.py
-├── docs/                   architecture, API contract
-├── docker-compose.yml
-└── start-arcc.bat
+├- frontend/
+│   ├- src/
+│   │   ├- pages/          Home, auth, dashboard pages
+│   │   ├- components/     Layouts, UI, InterviewChat
+│   │   ├- context/        AuthContext
+│   │   ├- services/       api.js (JWT client)
+│   │   ├- utils/          validation.js
+│   │   └- styles/         main.css
+│   └- public/
+├- backend/
+│   ├- routes/             auth, resume, analysis, interview
+│   ├- services/           business logic + email
+│   ├- database/
+│   │   ├- init/01-schema.sql   ← single canonical schema
+│   │   ├- migrate_auth.py      ← upgrade old DBs only
+│   │   └- db.py
+│   └- config.py
+├- docs/                   architecture, API contract
+├- docker-compose.yml
+└- start-arcc.bat
 ```
 
 ## Quick Start
