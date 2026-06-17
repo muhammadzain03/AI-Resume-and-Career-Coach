@@ -35,14 +35,14 @@ Planning docs (do not replace this file):
 | | `routes/analysis_routes.py` | Run analysis, results, per-user history |
 | | `routes/interview_routes.py` | Mock interview sessions |
 | Services | `services/analysis_service.py` | Token overlap + LLM analysis |
-| | `services/interview_engine.py` | In-memory interview sessions |
-| | `services/resume_parser.py` | PDF / DOCX / TXT extraction |
+| | `services/interview_engine.py` | DB-persisted interview sessions |
+| | `services/resume_parser.py` | PDF / DOCX / TXT extraction (pdfplumber + pypdf) |
 | | `services/email_service.py` | Verification and welcome email |
 | Integrations | `integrations/llm_client.py` | Gemini via OpenAI-compatible API |
-| | `integrations/stt_client.py` | STT stub |
 | Data | `database/db.py` | MySQL connection pool |
 | | `database/init/01-schema.sql` | Canonical DB schema (Docker init) |
-| | `database/migrate_auth.py` | Upgrade legacy databases |
+| | `database/migrate_auth.py` | Upgrade legacy databases (auth) |
+| | `database/migrate_engine.py` | Upgrade legacy databases (sessions + cache) |
 | Auth | `auth_utils.py` | JWT user id helper, DB error mapping |
 
 ### Frontend
@@ -154,11 +154,14 @@ Protected routes require header: `Authorization: Bearer <access_token>`
 #### `POST /interview/end`
 **Request:** `{ "session_id" }`
 
-#### `GET /interview/<session_id>`
-**200:** session state
+#### `GET /interview/history`
+**200:** `{ count, sessions: [{ session_id, role, complete, summary, created_at }] }`
 
-#### `POST /interview/transcribe`
-**Request:** multipart `audio` (stub returns empty text)
+#### `GET /interview/<session_id>`
+**200:** session state (transcript + summary), used for review
+
+> Voice input is handled in the browser via the Web Speech API (Chrome/Edge);
+> there is no server-side transcription endpoint.
 
 ---
 
@@ -170,6 +173,7 @@ Protected routes require header: `Authorization: Bearer <access_token>`
 |------|---------|
 | `backend/database/init/01-schema.sql` | **Canonical schema** - runs on first Docker MySQL boot |
 | `backend/database/migrate_auth.py` | One-time upgrade for databases created before auth columns |
+| `backend/database/migrate_engine.py` | One-time upgrade: `interview_sessions` table + `analysis_results.input_hash` |
 | `backend/database/db.py` | MySQL connection pool used by the Flask app |
 
 ### Fresh install (Docker)

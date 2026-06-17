@@ -13,6 +13,45 @@ logger = logging.getLogger(__name__)
 _MAX_CHARS = 12_000
 _REQUEST_TIMEOUT = 60
 
+# A weak model is more reliable at low temperature on structured output.
+_ANALYSIS_TEMPERATURE = 0.2
+
+# Priority ordering so the most important suggestions surface first.
+_PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
+
+# Detects quantified achievements: 40%, $2M, 1,200 users, 3x, 10k, "by 25".
+_QUANT_RE = re.compile(
+    r"(\d+\s?%|\$\s?\d|\d[\d,]*\s?(k|m|bn|x|hrs?|days?|users?|customers?|requests?)\b|\bby\s+\d|\d[\d,]{2,})",
+    re.IGNORECASE,
+)
+
+
+def _clean_text(text: str) -> str:
+    """Strip control chars and collapse whitespace so the model sees clean input."""
+    if not text:
+        return ""
+    text = text.replace("\x00", " ")
+    # Collapse runs of blank lines / spaces but keep single newlines for structure.
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _count_quantified_bullets(resume_text: str) -> int:
+    """Deterministic count of resume lines that contain a real metric.
+
+    Used to ground the LLM's impact_metrics score in reality - a weak model
+    often over- or under-rates this, so we bound it with a hard signal.
+    """
+    count = 0
+    for line in (resume_text or "").splitlines():
+        line = line.strip()
+        if len(line) < 12:
+            continue
+        if _QUANT_RE.search(line):
+            count += 1
+    return count
+
 # ---------------------------------------------------------------------------
 # Fallback suggestions (used when LLM is unavailable)
 # ---------------------------------------------------------------------------
@@ -148,7 +187,9 @@ def _compute_overall(breakdown: dict, baseline: float) -> float:
     return round(max(0, min(100, blended)), 2)
 
 
-def _coerce_analysis_payload(raw: dict[str, Any], overlap: dict) -> dict | None:
+def _coerce_analysis_payload(
+    raw: dict[str, Any], overlap: dict, quantified: int = 0
+) -> dict | None:
     try:
         raw_breakdown = raw.get("score_breakdown") or {}
         breakdown = {}
@@ -161,17 +202,44 @@ def _coerce_analysis_payload(raw: dict[str, Any], overlap: dict) -> dict | None:
             else:
                 breakdown[key] = 50.0
 
-        base = float(overlap["match_score"])
+        # Ground keyword_match in the deterministic overlap so a weak model
+        # can't drift too far from the real keyword reality.
+        det_kw = float(overlap["match_score"])
+        breakdown["keyword_match"] = round(
+            0.5 * breakdown["keyword_match"] + 0.5 * det_kw, 2
+        )
+
+        # Bound impact_metrics by the real count of quantified bullets - the
+        # single most-hallucinated sub-score on a low-end model.
+        if quantified <= 0:
+            breakdown["impact_metrics"] = min(breakdown["impact_metrics"], 45.0)
+        elif quantified >= 4:
+            breakdown["impact_metrics"] = max(breakdown["impact_metrics"], 60.0)
+
+        base = det_kw
         match_score = _compute_overall(breakdown, base)
 
         missing_skills = filter_skills(raw.get("missing_skills") or [])
 
         raw_suggestions = raw.get("suggestions") or []
         suggestions = []
+        seen = set()
         for s in raw_suggestions:
             coerced = _coerce_suggestion(s)
-            if coerced:
-                suggestions.append(coerced)
+            if not coerced:
+                continue
+            # Drop near-duplicates and vague one-liners a weak model tends to emit.
+            text = coerced["text"]
+            key = text.lower()[:60]
+            if key in seen or len(text) < 15:
+                continue
+            seen.add(key)
+            if coerced["priority"] not in _PRIORITY_RANK:
+                coerced["priority"] = "medium"
+            suggestions.append(coerced)
+
+        # Most important first.
+        suggestions.sort(key=lambda s: _PRIORITY_RANK.get(s["priority"], 1))
         suggestions = suggestions[:12]
 
         if not suggestions:
@@ -191,17 +259,26 @@ def _coerce_analysis_payload(raw: dict[str, Any], overlap: dict) -> dict | None:
         return None
 
 
-def _chat_completion(messages: list[dict[str, str]]) -> str:
+def _chat_completion(
+    messages: list[dict[str, str]],
+    json_mode: bool = True,
+    temperature: float = _ANALYSIS_TEMPERATURE,
+) -> str:
     url = f"{Config.LLM_BASE_URL}/chat/completions"
     headers = {
         "Authorization": f"Bearer {Config.LLM_API_KEY.strip()}",
         "Content-Type": "application/json",
     }
-    payload = {
+    payload: dict[str, Any] = {
         "model": Config.LLM_MODEL,
         "messages": messages,
-        "temperature": 0.35,
+        "temperature": temperature,
     }
+    if json_mode:
+        # Gemini's OpenAI-compatible endpoint honours structured output. This
+        # makes _extract_json_object succeed far more often, so real analysis
+        # shows up instead of the generic fallback bundle.
+        payload["response_format"] = {"type": "json_object"}
     resp = requests.post(url, headers=headers, json=payload, timeout=_REQUEST_TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
@@ -270,9 +347,10 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
     Hybrid overlap + LLM analysis with multi-dimensional scoring
     and structured, section-specific suggestions.
     """
-    resume_text = (resume_text or "").strip()
-    job_description = (job_description or "").strip()
+    resume_text = _clean_text(resume_text)
+    job_description = _clean_text(job_description)
     overlap = analyze_resume_against_job(resume_text, job_description)
+    quantified = _count_quantified_bullets(resume_text)
 
     if not Config.LLM_API_KEY or not Config.LLM_API_KEY.strip():
         return _fallback_bundle(overlap)
@@ -322,12 +400,18 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
         "- For Spelling issues, quote the error and the correction.\n"
         "- missing_skills: only real technical terms (tools, languages, frameworks, platforms, certifications). "
         "Do NOT include generic words like 'experience', 'knowledge', 'skills'.\n"
-        "- Scale: 0-40 unrelated, 40-70 partial match, 70-90 good, 90-100 near-perfect.\n"
+        "- Scale: 0-40 unrelated, 40-70 partial match, 70-90 good, 90-100 near-perfect.\n\n"
+        "EXAMPLE of one well-formed suggestion object (match this shape and specificity):\n"
+        '{"category": "Bullet Improvement", "section": "Experience > Backend Engineer", '
+        '"text": "Rewrite \'Worked on the payments API\' as \'Built a payments API handling '
+        '12k req/min, cutting checkout errors 30%\'.", "priority": "high"}\n'
     )
 
     user = (
-        f"Baseline keyword overlap (hint only): {overlap['match_score']}%. "
-        f"Baseline missing tokens (hint): {overlap['missing_skills'][:30]}\n\n"
+        f"DETERMINISTIC HINTS (ground your scores in these, do not contradict them):\n"
+        f"- Keyword overlap: {overlap['match_score']}%\n"
+        f"- Keywords in the JD missing from the resume: {overlap['missing_skills'][:30]}\n"
+        f"- Resume bullets containing a real metric/number: {quantified}\n\n"
         f"RESUME:\n{r_short}\n\nJOB DESCRIPTION:\n{j_short}"
     )
 
@@ -336,13 +420,18 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
         {"role": "user", "content": user},
     ]
 
-    try:
-        content = _chat_completion(messages)
-        parsed = _extract_json_object(content)
-        merged = _coerce_analysis_payload(parsed, overlap)
-        if merged:
-            return merged
-    except (requests.RequestException, json.JSONDecodeError):
-        logger.warning("LLM failed; using fallback analysis.")
+    # One retry on a parse/transport flub before dropping to the fallback -
+    # a single reroll fixes most flukes and keeps real analysis showing up.
+    for attempt in range(2):
+        try:
+            content = _chat_completion(messages)
+            parsed = _extract_json_object(content)
+            merged = _coerce_analysis_payload(parsed, overlap, quantified)
+            if merged:
+                return merged
+            logger.warning("LLM analysis payload unusable (attempt %d).", attempt + 1)
+        except (requests.RequestException, json.JSONDecodeError):
+            logger.warning("LLM call/parse failed (attempt %d).", attempt + 1)
 
+    logger.warning("LLM analysis unavailable; using fallback analysis.")
     return _fallback_bundle(overlap)

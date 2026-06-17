@@ -41,6 +41,15 @@ const icons = {
   ),
 };
 
+function getInitials(nameOrEmail) {
+  if (!nameOrEmail) return "?";
+  const parts = nameOrEmail.trim().split(/\s+/);
+  if (parts.length >= 2 && /[a-zA-Z]/.test(parts[0])) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return nameOrEmail.slice(0, 2).toUpperCase();
+}
+
 const DashboardLayout = ({ theme, onToggleTheme }) => {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
@@ -51,12 +60,27 @@ const DashboardLayout = ({ theme, onToggleTheme }) => {
     navigate("/login");
   };
 
+  const displayName = user?.name || user?.email || "";
+
   return (
     <div className={`dash-layout${collapsed ? " dash-layout--collapsed" : ""}`}>
       <aside className="dash-sidebar">
         <Link to="/" className="dash-sidebar__header dash-sidebar__home-link">
           <RCCLogo size={28} showWordmark={!collapsed} />
         </Link>
+
+        <button
+          type="button"
+          className="dash-sidebar__new"
+          onClick={() => navigate("/app/analyze")}
+          title="New analysis"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          {!collapsed && <span>New analysis</span>}
+        </button>
 
         <nav className="dash-sidebar__nav">
           {menuItems.map((item) => (
@@ -66,25 +90,32 @@ const DashboardLayout = ({ theme, onToggleTheme }) => {
               end={item.end}
               className="dash-sidebar__link"
             >
-              {icons[item.icon]}
+              <span className="dash-sidebar__link-icon">{icons[item.icon]}</span>
               {!collapsed && <span>{item.label}</span>}
             </NavLink>
           ))}
         </nav>
 
         <div className="dash-sidebar__footer">
-          {!collapsed && user && (
+          {user && (
             <div className="dash-sidebar__user">
-              <span className="dash-sidebar__user-name">
-                {user.name || user.email}
+              <span className="dash-sidebar__avatar" aria-hidden="true">
+                {getInitials(displayName)}
               </span>
-              <button
-                type="button"
-                className="dash-sidebar__logout"
-                onClick={handleLogout}
-              >
-                Log out
-              </button>
+              {!collapsed && (
+                <div className="dash-sidebar__user-meta">
+                  <span className="dash-sidebar__user-name" title={displayName}>
+                    {user.name || user.email}
+                  </span>
+                  <button
+                    type="button"
+                    className="dash-sidebar__logout"
+                    onClick={handleLogout}
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -120,7 +151,10 @@ const DashboardLayout = ({ theme, onToggleTheme }) => {
       </aside>
 
       <main className="dash-main">
-        <Outlet />
+        <div className="dash-main__bg" aria-hidden="true" />
+        <div className="dash-main__inner">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

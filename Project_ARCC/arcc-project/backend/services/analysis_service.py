@@ -237,21 +237,74 @@ _TECHNICAL_TERMS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Variant canonicalization. Different spellings of the same skill should match.
+# Aliases map single tokens; bigrams collapse two-word skills into one token
+# before tokenization so phrases like "machine learning" are matched.
+# ---------------------------------------------------------------------------
+_ALIASES = {
+    "js": "javascript",
+    "ts": "typescript",
+    "postgres": "postgresql",
+    "node": "nodejs",
+    "node.js": "nodejs",
+    "next.js": "nextjs",
+    "k8s": "kubernetes",
+    "gcp": "google-cloud",
+    "ml": "machine-learning",
+    "ai": "artificial-intelligence",
+    "tf": "tensorflow",
+    "sklearn": "scikit-learn",
+    "py": "python",
+}
+
+_BIGRAMS = {
+    "machine learning": "machine-learning",
+    "deep learning": "deep-learning",
+    "react native": "react-native",
+    "power bi": "powerbi",
+    "artificial intelligence": "artificial-intelligence",
+    "natural language processing": "nlp",
+    "computer vision": "computer-vision",
+    "data science": "data-science",
+    "google cloud": "google-cloud",
+    "spring boot": "springboot",
+    "ci/cd": "cicd",
+}
+
+
+def _normalize_text(text: str) -> str:
+    """Lowercase and collapse known two-word skills into single tokens."""
+    if not text:
+        return ""
+    lowered = text.lower()
+    for phrase, canonical in _BIGRAMS.items():
+        lowered = lowered.replace(phrase, canonical)
+    return lowered
+
+
 def _tokenize(text: str) -> set:
-    """Extract lowercase tokens, keeping tech-friendly characters."""
+    """Extract lowercase tokens, keeping tech-friendly characters.
+
+    Trailing sentence punctuation is stripped so 'node.' and 'postgres.' match
+    'node'/'postgres', while meaningful forms like '.net', 'c++', and 'ci/cd'
+    are preserved (only trailing . , ; : are removed)."""
     if not text:
         return set()
-    return set(re.findall(r"[a-z][a-z0-9+#./\-&]*", text.lower()))
+    raw = re.findall(r"[a-z][a-z0-9+#./\-&]*", _normalize_text(text))
+    return {t.rstrip(".,;:") for t in raw if t.rstrip(".,;:")}
 
 
 def _extract_technical_tokens(tokens: set) -> set:
     """
     From raw tokens, keep only those that look like real technical skills:
-    1. In the explicit tech allowlist or known terms dict  -> always keep
-    2. Not in the expanded stopword list                   -> keep if len > 2
+    1. Canonicalize known variants via the alias map
+    2. In the explicit tech allowlist or known terms dict  -> always keep
+    3. Not in the expanded stopword list                   -> keep if len > 2
     """
     kept = set()
-    for t in tokens:
+    for raw in tokens:
+        t = _ALIASES.get(raw, raw)
         if t in _TECH_ALLOWLIST or t in _TECHNICAL_TERMS:
             kept.add(t)
         elif t not in _STOP and len(t) > 2:

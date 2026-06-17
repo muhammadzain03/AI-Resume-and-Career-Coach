@@ -43,8 +43,14 @@ def upload_resume():
         try:
             parsed = parse_resume_file(temp_path)
             raw_text = (parsed or {}).get("raw_text", "").strip()
-            if not raw_text:
-                return jsonify({"error": "No text could be extracted from the resume"}), 422
+            if not raw_text or not (parsed or {}).get("extractable", False):
+                return jsonify({
+                    "error": "low_text_extraction",
+                    "message": (
+                        "We couldn't read enough text from this file. If it's a "
+                        "scanned PDF, upload a text-based PDF or DOCX."
+                    ),
+                }), 422
         except Exception:
             logger.exception("Resume parsing failed for file: %s", filename)
             return jsonify({"error": "Failed to parse resume"}), 422

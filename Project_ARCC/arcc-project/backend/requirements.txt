@@ -1,11 +1,13 @@
 flask
 flask-cors
 flask-jwt-extended
+flask-limiter
 flask-mail
 authlib
 google-auth
 mysql-connector-python
 python-dotenv
 requests
+pdfplumber
 pypdf
 python-docx

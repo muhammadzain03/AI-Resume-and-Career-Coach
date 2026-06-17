@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Button from "./Button";
 
 const DOCS_URL =
@@ -39,24 +39,32 @@ const FOOTER_COLUMNS = [
 
 const Footer = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // The big closing CTA only belongs on the marketing homepage. On auth and
+  // utility pages (/login, /signup, /verify-*) "Get started free" just routes
+  // to the page you're already on, so it's noise - show a slim footer instead.
+  const showCta = location.pathname === "/";
 
   return (
     <footer className="site-footer">
-      <div className="site-footer__cta">
-        <h2 className="site-footer__title">
-          Stop guessing. Start <span className="home-mark">landing</span>.
-        </h2>
-        <p className="site-footer__sub">
-          Score your resume against the job you want - in under a minute.
-        </p>
-        <Button
-          className="btn--pill btn--hero"
-          arrow
-          onClick={() => navigate("/signup")}
-        >
-          Get started free
-        </Button>
-      </div>
+      {showCta && (
+        <div className="site-footer__cta">
+          <h2 className="site-footer__title">
+            Stop guessing. Start <span className="home-mark">landing</span>.
+          </h2>
+          <p className="site-footer__sub">
+            Score your resume against the job you want - in under a minute.
+          </p>
+          <Button
+            className="btn--pill btn--hero"
+            arrow
+            onClick={() => navigate("/signup")}
+          >
+            Get started free
+          </Button>
+        </div>
+      )}
 
       <div className="site-footer__cols">
         {FOOTER_COLUMNS.map((column) => (

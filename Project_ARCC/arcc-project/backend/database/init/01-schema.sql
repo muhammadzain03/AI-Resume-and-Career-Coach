@@ -37,11 +37,33 @@ CREATE TABLE IF NOT EXISTS analysis_results (
     job_id INT NOT NULL,
     match_score FLOAT DEFAULT 0,
     suggestions LONGTEXT,
+    input_hash CHAR(64) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_analysis_resume
         FOREIGN KEY (resume_id) REFERENCES resumes(id)
         ON DELETE CASCADE,
     CONSTRAINT fk_analysis_job
         FOREIGN KEY (job_id) REFERENCES job_descriptions(id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    INDEX idx_analysis_input_hash (input_hash)
+);
+
+-- Interview sessions are persisted so they survive restarts and work across
+-- multiple workers. `state` holds the full session blob (history, llm_messages,
+-- current_index, use_llm) as JSON; `summary` is filled in on completion so
+-- finished interviews can be reviewed from the History page.
+CREATE TABLE IF NOT EXISTS interview_sessions (
+    id           VARCHAR(36) PRIMARY KEY,
+    user_id      INT NULL,
+    role         VARCHAR(255) NULL,
+    jd           LONGTEXT NULL,
+    state        LONGTEXT NOT NULL,
+    summary      LONGTEXT NULL,
+    complete     BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_interview_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE SET NULL,
+    INDEX idx_interview_user (user_id)
 );
