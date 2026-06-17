@@ -77,15 +77,34 @@ const featureSplits = [
       "Weak bullets rewritten with stronger, quantified phrasing",
     ],
     frameProps: {
+      variant: "resume",
       title: "analysis · full-stack engineer",
-      score: 91,
-      headline: "Strong ATS parse",
-      subtitle: "Clean structure · minor keyword gaps remain",
-      rows: [
-        { type: "match", label: "MATCH", text: "Node.js, PostgreSQL", tag: "core" },
-        { type: "match", label: "MATCH", text: "REST API design", tag: "core" },
-        { type: "gap", label: "GAP", text: "Redis not listed", tag: "add" },
-        { type: "match", label: "MATCH", text: "Unit & integration tests", tag: "core" },
+      file: "alex-morgan-resume.pdf",
+      headline: "ATS readable",
+      subtitle: "1 weak bullet flagged · 2 quick wins",
+      lines: [
+        { kind: "name", text: "Alex Morgan" },
+        { kind: "role", text: "Full-Stack Engineer · San Francisco" },
+        { kind: "section", text: "Experience" },
+        {
+          kind: "bullet",
+          text: "Architected 3 production services on Node.js + MySQL",
+          state: "good",
+          note: "Strong",
+        },
+        {
+          kind: "bullet",
+          text: "Worked on the REST API and various fixes",
+          state: "flag",
+          note: "Quantify impact",
+        },
+        {
+          kind: "bullet",
+          text: "Cut p95 latency 40% (800ms → 480ms)",
+          state: "good",
+        },
+        { kind: "section", text: "Skills" },
+        { kind: "text", text: "React · Node.js · MySQL · REST · Jest" },
       ],
     },
     flip: false,
@@ -100,16 +119,19 @@ const featureSplits = [
       "Concrete suggestions for what to add and what to cut",
     ],
     frameProps: {
+      variant: "scoring",
       title: "scoring · product manager",
       score: 68,
       headline: "Partial fit",
-      subtitle: "5 missing keywords · 3 bullets need metrics",
-      rows: [
-        { type: "match", label: "MATCH", text: "Roadmaps, stakeholder comms", tag: "core" },
-        { type: "gap", label: "GAP", text: "SQL not mentioned", tag: "add" },
-        { type: "gap", label: "GAP", text: "A/B testing absent", tag: "add" },
-        { type: "gap", label: "GAP", text: "Revenue impact missing", tag: "fix" },
+      subtitle: "Tailor to reach 85+",
+      missing: [
+        { text: "SQL", priority: "high" },
+        { text: "A/B testing", priority: "high" },
+        { text: "Roadmap OKRs", priority: "medium" },
+        { text: "SaaS metrics", priority: "medium" },
+        { text: "Figma", priority: "low" },
       ],
+      matched: ["Roadmaps", "Stakeholder comms", "Agile", "Discovery"],
     },
     flip: true,
   },
@@ -123,15 +145,27 @@ const featureSplits = [
       "A running summary of what to tighten before the real thing",
     ],
     frameProps: {
+      variant: "interview",
       title: "interview · data analyst",
-      score: 76,
-      headline: "Good structure",
-      subtitle: "STAR format solid · sharpen SQL walkthrough",
-      rows: [
-        { type: "match", label: "MATCH", text: "STAR format used well", tag: "core" },
-        { type: "gap", label: "GAP", text: "Quantify dashboard impact", tag: "fix" },
-        { type: "match", label: "MATCH", text: "Clear hypothesis framing", tag: "core" },
-        { type: "gap", label: "GAP", text: "Practice window functions", tag: "add" },
+      headline: "RCC Interview Coach",
+      subtitle: "Role-specific · live feedback",
+      progress: "Q3 / 8",
+      messages: [
+        {
+          type: "question",
+          tag: "Q",
+          text: "Walk me through how you'd debug a dashboard showing wrong numbers.",
+        },
+        {
+          type: "answer",
+          tag: "You",
+          text: "I'd trace the metric back to the query, then validate the source table…",
+        },
+        {
+          type: "feedback",
+          tag: "Feedback",
+          text: "Strong, structured answer. Add a quick example of a bug you actually caught.",
+        },
       ],
     },
     flip: false,
@@ -155,7 +189,7 @@ const stats = [
   { text: "Real-time", label: "AI interview feedback" },
 ];
 
-const techStack = ["React", "Gemini", "Flask", "PostgreSQL"];
+const techStack = ["React", "Gemini", "Flask", "MySQL"];
 
 const whatItChecks = [
   "ATS parsing",

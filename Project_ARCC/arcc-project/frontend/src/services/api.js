@@ -4,6 +4,24 @@ const ACCESS_KEY = "rcc_access_token";
 const REFRESH_KEY = "rcc_refresh_token";
 const USER_KEY = "rcc_user";
 
+const NETWORK_ERROR_MESSAGE =
+  "Can't reach the server. Make sure the backend is running on " +
+  `${API_BASE.replace(/\/api$/, "")} and try again.`;
+
+// fetch() rejects with a TypeError on network-level failures (server down,
+// CORS, DNS). Translate that into an actionable message instead of the
+// browser's opaque "Failed to fetch".
+async function doFetch(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch (err) {
+    const netErr = new Error(NETWORK_ERROR_MESSAGE);
+    netErr.status = 0;
+    netErr.cause = err;
+    throw netErr;
+  }
+}
+
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_KEY);
 }
@@ -48,7 +66,7 @@ async function refreshAccessToken() {
   const refresh = getRefreshToken();
   if (!refresh) return false;
 
-  const response = await fetch(`${API_BASE}/auth/refresh`, {
+  const response = await doFetch(`${API_BASE}/auth/refresh`, {
     method: "POST",
     headers: { Authorization: `Bearer ${refresh}` },
   });
@@ -71,13 +89,13 @@ export async function authFetch(path, options = {}) {
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let response = await doFetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (response.status === 401 && getRefreshToken()) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       headers.Authorization = `Bearer ${getAccessToken()}`;
-      response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      response = await doFetch(`${API_BASE}${path}`, { ...options, headers });
     }
   }
 
@@ -95,7 +113,7 @@ export async function registerUser(name, email, password) {
 }
 
 export async function loginUser(email, password) {
-  const response = await fetch(`${API_BASE}/auth/login`, {
+  const response = await doFetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -120,7 +138,9 @@ export async function getMe() {
 }
 
 export async function verifyEmail(token) {
-  const response = await fetch(`${API_BASE}/auth/verify/${encodeURIComponent(token)}`);
+  const response = await doFetch(
+    `${API_BASE}/auth/verify/${encodeURIComponent(token)}`
+  );
   return parseResponse(response);
 }
 
@@ -169,4 +189,13 @@ export async function endInterview(sessionId) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId }),
   });
+}
+
+export async function getInterviewHistory(limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return authFetch(`/interview/history?${params}`);
+}
+
+export async function getInterviewSession(sessionId) {
+  return authFetch(`/interview/${encodeURIComponent(sessionId)}`);
 }

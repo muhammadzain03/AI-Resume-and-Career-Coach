@@ -1,9 +1,12 @@
+import hashlib
 import logging
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 
+from config import Config
 from database.db import get_conn
+from extensions import limiter
 from auth_utils import current_user_id
 from integrations.llm_client import (
     analyze_resume_job,
@@ -14,6 +17,17 @@ from integrations.llm_client import (
 logger = logging.getLogger(__name__)
 
 analysis_bp = Blueprint("analysis", __name__)
+
+
+def _input_hash(resume_text: str, job_description: str) -> str:
+    """Stable cache key for (resume, job, model). Same inputs -> same result."""
+    h = hashlib.sha256()
+    h.update((resume_text or "").encode("utf-8"))
+    h.update(b"\x00")
+    h.update((job_description or "").encode("utf-8"))
+    h.update(b"\x00")
+    h.update((Config.LLM_MODEL or "").encode("utf-8"))
+    return h.hexdigest()
 
 def extract_job_title(description: str) -> str:
     """
@@ -42,6 +56,7 @@ def analysis_health():
     return jsonify({"status": "ok", "module": "analysis"})
 
 @analysis_bp.route("/run", methods=["POST"])
+@limiter.limit("20 per hour")
 @jwt_required()
 def run_analysis():
     """
@@ -90,6 +105,35 @@ def run_analysis():
         if not raw_resume:
             return jsonify({"error": "resume has no extracted text"}), 422
 
+        # M1 - cache: identical resume+JD+model returns the stored result and
+        # skips the Gemini call. Scoped to this user's own resumes.
+        cache_key = _input_hash(raw_resume, job_description)
+        cur.execute(
+            """
+            SELECT ar.id, ar.resume_id, ar.job_id, ar.match_score, ar.suggestions
+            FROM analysis_results ar
+            JOIN resumes r ON r.id = ar.resume_id
+            WHERE ar.input_hash = %s AND r.user_id = %s
+            ORDER BY ar.created_at DESC
+            LIMIT 1
+            """,
+            (cache_key, parsed_user_id),
+        )
+        cached = cur.fetchone()
+        if cached:
+            unpacked = unpack_analysis_from_db(cached.get("suggestions"))
+            return jsonify({
+                "analysis_id": cached["id"],
+                "resume_id": cached["resume_id"],
+                "job_id": cached["job_id"],
+                "match_score": cached["match_score"],
+                "score_breakdown": unpacked.get("score_breakdown", {}),
+                "matched_skills": unpacked["matched_skills"],
+                "missing_skills": unpacked["missing_skills"],
+                "suggestions": unpacked["suggestions"],
+                "cached": True,
+            }), 200
+
         try:
             payload = analyze_resume_job(raw_resume, job_description)
         except Exception:
@@ -106,14 +150,16 @@ def run_analysis():
 
         cur.execute(
             """
-            INSERT INTO analysis_results (resume_id, job_id, match_score, suggestions)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO analysis_results
+                (resume_id, job_id, match_score, suggestions, input_hash)
+            VALUES (%s, %s, %s, %s, %s)
             """,
             (
                 resume_id,
                 job_id,
                 float(payload["match_score"]),
                 suggestions_blob,
+                cache_key,
             ),
         )
         analysis_id = cur.lastrowid

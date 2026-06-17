@@ -1,15 +1,25 @@
 """
 Interview API (Phase 5 - F-07).
 
-POST /start, /answer, /end, /transcribe are registered before /<session_id>
-so names like "end" are not treated as UUIDs on GET.
+Named routes (/start, /answer, /end, /history) are registered before
+/<session_id> so they are not treated as UUIDs on GET.
+
+Voice input is handled entirely in the browser via the Web Speech API
+(Chrome/Edge), so there is no server-side transcription endpoint.
 """
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
-from integrations.stt_client import transcribe
-from services.interview_engine import create_session, end_session, get_next, get_session
+from auth_utils import current_user_id
+from extensions import limiter
+from services.interview_engine import (
+    create_session,
+    end_session,
+    get_next,
+    get_session,
+    list_sessions,
+)
 
 interview_bp = Blueprint("interview", __name__)
 
@@ -20,6 +30,7 @@ def interview_health():
 
 
 @interview_bp.route("/start", methods=["POST"])
+@limiter.limit("20 per hour")
 @jwt_required()
 def start_interview():
     """
@@ -33,11 +44,12 @@ def start_interview():
     if not jd:
         return jsonify({"error": "job_description is required"}), 400
 
-    result = create_session(jd, role or None)
+    result = create_session(jd, role or None, user_id=current_user_id())
     return jsonify(result), 201
 
 
 @interview_bp.route("/answer", methods=["POST"])
+@limiter.limit("120 per hour")
 @jwt_required()
 def submit_answer():
     """
@@ -65,7 +77,7 @@ def submit_answer():
 @interview_bp.route("/end", methods=["POST"])
 @jwt_required()
 def end_interview():
-    """JSON: session_id - drops session and returns summary."""
+    """JSON: session_id - marks the session complete and returns a summary."""
     data = request.get_json(silent=True) or {}
     session_id = (data.get("session_id") or "").strip()
 
@@ -80,26 +92,24 @@ def end_interview():
     return jsonify(result)
 
 
-@interview_bp.route("/transcribe", methods=["POST"])
+@interview_bp.route("/history", methods=["GET"])
 @jwt_required()
-def transcribe_audio():
-    """multipart field 'audio' - stub returns empty text until STT is wired."""
-    audio_file = request.files.get("audio")
+def interview_history():
+    """Recent interview sessions for the signed-in user (H2)."""
+    raw_limit = request.args.get("limit", "20")
+    try:
+        limit = max(1, min(int(raw_limit), 100))
+    except (TypeError, ValueError):
+        limit = 20
 
-    if not audio_file:
-        return jsonify({"error": "No audio file provided"}), 400
-
-    mime_type = audio_file.mimetype or "audio/webm"
-    audio_bytes = audio_file.read()
-
-    result = transcribe(audio_bytes, mime_type)
-    return jsonify(result)
+    sessions = list_sessions(current_user_id(), limit)
+    return jsonify({"count": len(sessions), "sessions": sessions})
 
 
 @interview_bp.route("/<session_id>", methods=["GET"])
 @jwt_required()
 def get_interview(session_id):
-    """GET session state for refresh."""
+    """GET session state (transcript + summary) for refresh or review."""
     result = get_session(session_id)
 
     if "error" in result:

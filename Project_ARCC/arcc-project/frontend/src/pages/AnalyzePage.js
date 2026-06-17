@@ -55,10 +55,10 @@ const AnalyzePage = () => {
   const [error, setError] = useState("");
   const [results, setResults] = useState(null);
   const [suggestionStates, setSuggestionStates] = useState({});
+  const [dragging, setDragging] = useState(false);
   const resultsRef = useRef(null);
 
-  const handleFileChange = (e) => {
-    const f = e.target.files?.[0];
+  const acceptFile = (f) => {
     if (!f) return;
     const validationError = validateResumeFile(f);
     if (validationError) {
@@ -68,6 +68,25 @@ const AnalyzePage = () => {
     }
     setError("");
     setFile(f);
+  };
+
+  const handleFileChange = (e) => acceptFile(e.target.files?.[0]);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    if (uploading || analyzing) return;
+    acceptFile(e.dataTransfer.files?.[0]);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (!uploading && !analyzing) setDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragging(false);
   };
 
   const handleAnalyze = async () => {
@@ -132,6 +151,13 @@ const AnalyzePage = () => {
     return "score--low";
   };
 
+  const getVerdict = (score) => {
+    if (score >= 85) return "Strong match";
+    if (score >= 70) return "Good match";
+    if (score >= 50) return "Partial match";
+    return "Needs work";
+  };
+
   const toggleSuggestion = (index, action) => {
     setSuggestionStates((prev) => {
       const current = prev[index];
@@ -157,14 +183,50 @@ const AnalyzePage = () => {
       </ScrollReveal>
 
       <div className="analyze-form">
-        <ScrollReveal delay={0.1}>
+        <ScrollReveal delay={0.1} className="analyze-col">
           <Card className="analyze-card">
-            <h2>1. Upload Resume</h2>
-            <p className="analyze-card__hint">PDF or DOCX, up to 4 MB</p>
-            <label className="file-input" htmlFor="analyze-resume">
-              <span>
-                {file ? file.name : "Drop a PDF or DOCX here, or click to browse."}
+            <div className="analyze-card__head">
+              <span className="step-badge">1</span>
+              <div>
+                <h2>Upload resume</h2>
+                <p className="analyze-card__hint">PDF or DOCX, up to 4 MB</p>
+              </div>
+            </div>
+            <label
+              className={`dropzone${dragging ? " dropzone--active" : ""}${
+                file ? " dropzone--filled" : ""
+              }`}
+              htmlFor="analyze-resume"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              <span className="dropzone__icon" aria-hidden="true">
+                {file ? (
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                )}
               </span>
+              {file ? (
+                <span className="dropzone__file">{file.name}</span>
+              ) : (
+                <>
+                  <span className="dropzone__title">
+                    {dragging ? "Drop to upload" : "Drop your resume here"}
+                  </span>
+                  <span className="dropzone__hint">
+                    or click to browse · PDF, DOCX
+                  </span>
+                </>
+              )}
               <input
                 id="analyze-resume"
                 type="file"
@@ -176,9 +238,17 @@ const AnalyzePage = () => {
           </Card>
         </ScrollReveal>
 
-        <ScrollReveal delay={0.2}>
+        <ScrollReveal delay={0.2} className="analyze-col">
           <Card className="analyze-card">
-            <h2>2. Job Description</h2>
+            <div className="analyze-card__head">
+              <span className="step-badge">2</span>
+              <div>
+                <h2>Job description</h2>
+                <p className="analyze-card__hint">
+                  Paste the role you&apos;re targeting
+                </p>
+              </div>
+            </div>
             <div className="input-group">
               <label className="input-label" htmlFor="analyze-title">
                 Job Title
@@ -202,18 +272,20 @@ const AnalyzePage = () => {
                 placeholder="Paste the full job description here..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows="8"
+                rows="6"
                 disabled={uploading || analyzing}
               />
             </div>
           </Card>
         </ScrollReveal>
 
-        <ScrollReveal delay={0.3}>
+        <ScrollReveal delay={0.3} className="analyze-form__actions">
           <div className="analyze-actions">
             <Button
               onClick={handleAnalyze}
               disabled={uploading || analyzing || !file}
+              arrow
+              className="btn--pill"
             >
               {uploading
                 ? "Uploading..."
@@ -244,11 +316,28 @@ const AnalyzePage = () => {
             <h2 className="analyze-results__heading">Results</h2>
 
             {/* Overall score */}
-            <div className="score-wrapper">
-              <div className={`score-pill ${getScoreClass(matchScore)}`}>
-                {matchScore.toFixed(1)}%
+            <div className="score-hero">
+              <div
+                className={`score-ring ${getScoreClass(matchScore)}`}
+                style={{ "--score-percent": `${matchScore}%` }}
+              >
+                <div className="score-ring__inner">
+                  <span className="score-ring__num">
+                    {Math.round(matchScore)}
+                  </span>
+                  <span className="score-ring__pct">%</span>
+                </div>
               </div>
-              <p className="score-label">Overall Match Score</p>
+              <div className="score-hero__meta">
+                <span
+                  className={`score-hero__verdict ${getScoreClass(matchScore)}`}
+                >
+                  {getVerdict(matchScore)}
+                </span>
+                <p className="score-hero__label">
+                  Overall match against this job description
+                </p>
+              </div>
             </div>
 
             {/* Score breakdown */}
