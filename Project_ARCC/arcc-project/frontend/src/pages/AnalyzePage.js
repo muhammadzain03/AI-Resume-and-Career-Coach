@@ -30,6 +30,21 @@ const PRIORITY_LABELS = {
   low: "Low",
 };
 
+const PARSE_ERROR_MESSAGE =
+  "That file wouldn't parse. Try a text-based PDF or a DOCX - scanned images won't work.";
+
+function getAnalyzeErrorMessage(err) {
+  const msg = (err?.message || "").toLowerCase();
+  if (
+    msg.includes("parse") ||
+    msg.includes("extract") ||
+    msg.includes("text-based")
+  ) {
+    return PARSE_ERROR_MESSAGE;
+  }
+  return err?.message || "Something went wrong. Please try again.";
+}
+
 const AnalyzePage = () => {
   const [file, setFile] = useState(null);
   const [jobTitle, setJobTitle] = useState("");
@@ -80,7 +95,7 @@ const AnalyzePage = () => {
 
       setUploading(false);
       setAnalyzing(true);
-      setProgress("Running analysis...");
+      setProgress("Reading your resume the way an ATS would...");
 
       const analysisResult = await runAnalysis(resumeId, description.trim());
       const analysisId =
@@ -100,7 +115,7 @@ const AnalyzePage = () => {
         });
       }, 200);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(getAnalyzeErrorMessage(err));
       setProgress("");
     } finally {
       setUploading(false);
@@ -147,7 +162,9 @@ const AnalyzePage = () => {
             <h2>1. Upload Resume</h2>
             <p className="analyze-card__hint">PDF or DOCX, up to 4 MB</p>
             <label className="file-input" htmlFor="analyze-resume">
-              <span>{file ? file.name : "Choose file"}</span>
+              <span>
+                {file ? file.name : "Drop a PDF or DOCX here, or click to browse."}
+              </span>
               <input
                 id="analyze-resume"
                 type="file"

@@ -59,9 +59,10 @@ describe("App", () => {
     }));
 
     expect(navLinks).toEqual([
-      { text: "Home", href: "/" },
       { text: "Features", href: "/#features" },
       { text: "How it works", href: "/#how-it-works" },
+      { text: "Pricing", href: "/#pricing" },
+      { text: "FAQ", href: "/#faq" },
     ]);
 
     expect(document.querySelector(".site-nav__cta")?.textContent).toContain(

@@ -1,7 +1,15 @@
-import React from "react";
-import { Outlet, NavLink, Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import Footer from "./Footer";
+import BackToTop from "./BackToTop";
 import { useAuth } from "../context/AuthContext";
+
+const SCROLLSPY_SECTION_IDS = [
+  "features",
+  "how-it-works",
+  "pricing",
+  "faq",
+];
 
 function getInitials(name) {
   if (!name) return "?";
@@ -12,12 +20,51 @@ function getInitials(name) {
   return parts[0].slice(0, 2).toUpperCase();
 }
 
+function sectionLinkClass(activeId, id) {
+  return activeId === id ? "active" : undefined;
+}
+
 const PublicLayout = ({ theme, onToggleTheme }) => {
   const { user, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+  const [activeId, setActiveId] = useState("");
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      setActiveId("");
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveId(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: "-45% 0px -50% 0px" },
+    );
+
+    SCROLLSPY_SECTION_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [location.pathname]);
 
   return (
     <div className="public-layout">
-      <header className="site-header">
+      <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
         <nav className="site-nav" aria-label="Main">
           <div className="site-nav__inner">
             <NavLink to="/" className="site-nav__brand" end>
@@ -28,11 +75,27 @@ const PublicLayout = ({ theme, onToggleTheme }) => {
             </NavLink>
 
             <div className="site-nav__links">
-              <NavLink to="/" end>
-                Home
-              </NavLink>
-              <a href="/#features">Features</a>
-              <a href="/#how-it-works">How it works</a>
+              <a
+                href="/#features"
+                className={sectionLinkClass(activeId, "features")}
+              >
+                Features
+              </a>
+              <a
+                href="/#how-it-works"
+                className={sectionLinkClass(activeId, "how-it-works")}
+              >
+                How it works
+              </a>
+              <a
+                href="/#pricing"
+                className={sectionLinkClass(activeId, "pricing")}
+              >
+                Pricing
+              </a>
+              <a href="/#faq" className={sectionLinkClass(activeId, "faq")}>
+                FAQ
+              </a>
             </div>
 
             <div className="site-nav__actions">
@@ -69,6 +132,7 @@ const PublicLayout = ({ theme, onToggleTheme }) => {
       </main>
 
       <Footer />
+      <BackToTop />
     </div>
   );
 };

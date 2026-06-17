@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { motion, useInView } from "framer-motion";
+import prefersReducedMotion from "../utils/prefersReducedMotion";
 
 const directions = {
   up: { y: 40, x: 0 },
@@ -18,6 +19,15 @@ const ScrollReveal = ({
 }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
+  const reduceMotion = prefersReducedMotion();
+
+  if (reduceMotion) {
+    return (
+      <div ref={ref} className={className}>
+        {children}
+      </div>
+    );
+  }
 
   const d = directions[direction] || directions.up;
 

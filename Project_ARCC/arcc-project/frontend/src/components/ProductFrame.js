@@ -4,39 +4,42 @@ const DEFAULT_ROWS = [
   {
     type: "match",
     label: "MATCH",
-    text: "React, TypeScript, testing",
+    text: "Python, data pipelines",
     tag: "core",
   },
   {
     type: "gap",
     label: "GAP",
-    text: "GraphQL not found in resume",
+    text: "Spark not found in resume",
     tag: "add",
   },
   {
     type: "gap",
     label: "GAP",
-    text: "Quantify impact in 2 bullets",
+    text: "Add latency numbers to 1 bullet",
     tag: "fix",
   },
   {
     type: "match",
     label: "MATCH",
-    text: "CI/CD, Docker",
+    text: "Git, CI workflows",
     tag: "core",
   },
 ];
 
 const ProductFrame = ({
-  title = "analysis · senior frontend engineer",
-  score = 87,
-  headline = "Strong match",
-  subtitle = "ATS-ready · 4 quick wins to reach 95",
+  title = "analysis · software engineer",
+  score = 75,
+  headline = "Match preview",
+  subtitle = "Sample analysis · upload for your real score",
   rows = DEFAULT_ROWS,
   children,
+  className = "",
 }) => {
+  const classes = ["product-frame", className].filter(Boolean).join(" ");
+
   return (
-    <div className="product-frame">
+    <div className={classes}>
       <div className="product-frame__device">
         {children || (
           <div className="product-frame__ui">
@@ -44,6 +47,7 @@ const ProductFrame = ({
               <span className="product-frame__dot" />
               <span className="product-frame__dot" />
               <span className="product-frame__dot" />
+              <span className="product-frame__sample">Sample preview</span>
               <span className="product-frame__ui-title">{title}</span>
             </div>
 
@@ -61,8 +65,8 @@ const ProductFrame = ({
                 </div>
               </div>
 
-              {rows.map((row) => (
-                <div className="product-frame__row" key={`${row.label}-${row.text}`}>
+              {rows.map((row, index) => (
+                <div className="product-frame__row" key={`${row.label}-${row.text}-${index}`}>
                   <span className={`product-frame__pill product-frame__pill--${row.type}`}>
                     {row.label}
                   </span>

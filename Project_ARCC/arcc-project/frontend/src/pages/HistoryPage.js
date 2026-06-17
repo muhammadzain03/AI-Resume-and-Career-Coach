@@ -39,7 +39,7 @@ const HistoryPage = () => {
         <ScrollReveal delay={0.1}>
           <div className="dash-empty">
             <h2>No analyses yet</h2>
-            <p>Run your first resume analysis to see results here.</p>
+            <p>No analyses yet? Upload a resume to see your first score.</p>
           </div>
         </ScrollReveal>
       ) : (

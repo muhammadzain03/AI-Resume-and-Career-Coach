@@ -40,7 +40,7 @@ Project_ARCC/arcc-project/
 │   │   ├- migrate_auth.py      ← upgrade old DBs only
 │   │   └- db.py
 │   └- config.py
-├- docs/                   architecture, API contract
+├- docs/                   RCC-Project-Documentation, plans
 ├- docker-compose.yml
 └- start-arcc.bat
 ```
@@ -66,7 +66,7 @@ Project_ARCC/arcc-project/
 | `DB_*` | MySQL (Docker: port **3307**, password **root**) |
 | `LLM_API_KEY` | Optional Gemini key |
 
-See `backend/database/README.md` for database setup details.
+See `Project_ARCC/arcc-project/docs/RCC-Project-Documentation.md` for architecture, API, and database setup.
 
 ## License
 
