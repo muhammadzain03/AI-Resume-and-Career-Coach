@@ -167,11 +167,13 @@ export async function getHistory(limit = 20) {
   return authFetch(`/analysis/history?${params}`);
 }
 
-export async function startInterview(jobDescription, role = "") {
+export async function startInterview(jobDescription, role = "", resumeId = null) {
+  const body = { job_description: jobDescription, role };
+  if (resumeId) body.resume_id = resumeId;
   return authFetch("/interview/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ job_description: jobDescription, role }),
+    body: JSON.stringify(body),
   });
 }
 

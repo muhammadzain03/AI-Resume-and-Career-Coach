@@ -130,6 +130,7 @@ def run_analysis():
                 "score_breakdown": unpacked.get("score_breakdown", {}),
                 "matched_skills": unpacked["matched_skills"],
                 "missing_skills": unpacked["missing_skills"],
+                "hard_requirements": unpacked.get("hard_requirements", []),
                 "suggestions": unpacked["suggestions"],
                 "cached": True,
             }), 200
@@ -174,6 +175,7 @@ def run_analysis():
             "score_breakdown": payload.get("score_breakdown", {}),
             "matched_skills": payload["matched_skills"],
             "missing_skills": payload["missing_skills"],
+            "hard_requirements": payload.get("hard_requirements", []),
             "suggestions": payload["suggestions"],
         }), 201
 
@@ -230,6 +232,7 @@ def get_analysis(analysis_id):
             "job_description": row.get("description") or "",
             "matched_skills": unpacked["matched_skills"],
             "missing_skills": unpacked["missing_skills"],
+            "hard_requirements": unpacked.get("hard_requirements", []),
             "suggestions": unpacked["suggestions"],
         })
 

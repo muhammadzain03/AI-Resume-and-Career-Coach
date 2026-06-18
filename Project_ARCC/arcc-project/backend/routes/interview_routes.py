@@ -8,10 +8,13 @@ Voice input is handled entirely in the browser via the Web Speech API
 (Chrome/Edge), so there is no server-side transcription endpoint.
 """
 
+import logging
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from auth_utils import current_user_id
+from database.db import get_conn
 from extensions import limiter
 from services.interview_engine import (
     create_session,
@@ -21,7 +24,41 @@ from services.interview_engine import (
     list_sessions,
 )
 
+logger = logging.getLogger(__name__)
+
 interview_bp = Blueprint("interview", __name__)
+
+
+def _load_background(resume_id, user_id) -> str:
+    """Fetch a resume's text to personalize the interview, scoped to the user."""
+    if resume_id in (None, ""):
+        return ""
+    try:
+        rid = int(resume_id)
+    except (TypeError, ValueError):
+        return ""
+
+    conn, cur = None, None
+    try:
+        conn = get_conn()
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            "SELECT text_content, user_id FROM resumes WHERE id=%s", (rid,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return ""
+        if row.get("user_id") is not None and row["user_id"] != user_id:
+            return ""
+        return (row.get("text_content") or "").strip()
+    except Exception:
+        logger.exception("Failed to load resume %s for interview background", resume_id)
+        return ""
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 @interview_bp.route("/health", methods=["GET"])
@@ -40,11 +77,17 @@ def start_interview():
     data = request.get_json(silent=True) or {}
     jd = (data.get("job_description") or "").strip()
     role = (data.get("role") or "").strip()
+    resume_id = data.get("resume_id")
+    user_id = current_user_id()
 
     if not jd:
         return jsonify({"error": "job_description is required"}), 400
 
-    result = create_session(jd, role or None, user_id=current_user_id())
+    background = _load_background(resume_id, user_id)
+
+    result = create_session(
+        jd, role or None, user_id=user_id, background=background
+    )
     return jsonify(result), 201
 
 

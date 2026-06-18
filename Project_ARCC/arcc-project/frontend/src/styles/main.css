@@ -4221,3 +4221,287 @@ a {
     margin: 0 -0.5rem;
   }
 }
+
+/* ----------------------
+   SPINNER
+   ---------------------- */
+.spinner {
+  display: inline-block;
+  line-height: 0;
+}
+
+.spinner svg {
+  animation: spinner-rotate 0.8s linear infinite;
+}
+
+.spinner__track {
+  stroke: var(--line);
+}
+
+.spinner__arc {
+  stroke: var(--accent);
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner svg { animation-duration: 2s; }
+}
+
+.analyze-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.analyze-progress__text {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+/* ----------------------
+   HARD REQUIREMENTS
+   ---------------------- */
+.requirements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.requirement-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-glass);
+}
+
+.requirement-row__icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.requirement-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.requirement-row__text {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.requirement-row__note {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.requirement-row__status {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  align-self: center;
+}
+
+.requirement-row.req--met .requirement-row__icon {
+  color: var(--score-high);
+  background: var(--accent-dim);
+}
+.requirement-row.req--met .requirement-row__status { color: var(--score-high); }
+
+.requirement-row.req--missing .requirement-row__icon {
+  color: var(--score-low);
+  background: rgba(255, 82, 82, 0.12);
+}
+.requirement-row.req--missing .requirement-row__status { color: var(--score-low); }
+.requirement-row.req--missing {
+  border-color: rgba(255, 82, 82, 0.3);
+}
+
+.requirement-row.req--unclear .requirement-row__icon {
+  color: var(--score-mid);
+  background: rgba(255, 193, 7, 0.14);
+}
+.requirement-row.req--unclear .requirement-row__status { color: var(--score-mid); }
+
+.score-hero__interview-btn {
+  margin-top: 0.85rem;
+}
+
+/* ----------------------
+   HISTORY: clickable analysis cards
+   ---------------------- */
+.history-card--clickable {
+  position: relative;
+}
+
+.history-card__open {
+  position: absolute;
+  top: 1rem;
+  right: 1.15rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.history-card--clickable:hover .history-card__open,
+.history-card--clickable:focus-visible .history-card__open {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.back-link {
+  all: unset;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin-bottom: 0.6rem;
+  display: inline-block;
+}
+
+.back-link:hover {
+  color: var(--accent);
+}
+
+.back-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ----------------------
+   INTERVIEW: context upload, score card, typing
+   ---------------------- */
+.context-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  position: relative;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px dashed var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-dim);
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.context-upload:hover {
+  border-color: var(--accent);
+}
+
+.context-upload__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+}
+
+.context-upload__text {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.context-upload__hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+.interview-score-card {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.9rem 1.6rem;
+  margin: 0.4rem 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.interview-score-card__num {
+  font-family: "Space Grotesk", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.interview-score-card--mid .interview-score-card__num { color: var(--score-mid); }
+.interview-score-card--low .interview-score-card__num { color: var(--score-low); }
+
+.interview-score-card__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.interview-typing {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--line);
+  border-radius: 4px 14px 14px 14px;
+  padding: 0.75rem 0.85rem;
+}
+
+.interview-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+
+.interview-typing span:nth-child(2) { animation-delay: 0.15s; }
+.interview-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interview-typing span { animation: none; }
+}

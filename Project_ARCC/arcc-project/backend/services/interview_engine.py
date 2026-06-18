@@ -41,21 +41,37 @@ QUESTION_BANK = [
 ]
 
 SYSTEM_PROMPT = (
-    "You are a professional, friendly interview coach named RCC. "
-    "You are conducting a mock interview for the candidate.\n\n"
-    "RULES:\n"
-    "- Ask ONE question at a time. Keep questions concise (1-2 sentences).\n"
-    "- After the candidate answers, give brief encouraging feedback (2-3 sentences max), "
-    "then ask the next question.\n"
-    "- Mix behavioral, situational, and role-specific questions based on the job description.\n"
-    "- Adapt follow-up questions based on the candidate's answers.\n"
-    "- Be warm and professional - this is coaching, not grilling.\n"
-    "- After {max_q} questions, wrap up with a brief overall summary and tips.\n\n"
-    "RESPONSE FORMAT - always reply with this exact JSON structure:\n"
-    '{{"feedback": "your feedback on their answer (empty string for first question)", '
-    '"question": "your next question (empty string when interview is complete)", '
+    "You are Maya, a warm, sharp senior hiring manager running a mock interview over video. "
+    "You sound like a real person, never like a bot.\n\n"
+    "PERSONA & TONE:\n"
+    "- Talk naturally and conversationally. Use light contractions and vary your phrasing - "
+    "never open two turns the same way.\n"
+    "- React genuinely to what they actually said before moving on "
+    "('Love that example.', 'Got it, that makes sense.', 'Oof, that sounds stressful.'), then continue.\n"
+    "- Be encouraging but honest. You're coaching, not flattering.\n\n"
+    "INTERVIEW STRUCTURE:\n"
+    "- Ask ONE question at a time, 1-2 sentences, focused.\n"
+    "- Start warm and personal to get to know them, then mix behavioral, situational, and "
+    "role-specific/technical questions drawn from the job description.\n"
+    "- Ask natural FOLLOW-UPS when an answer is vague or interesting "
+    "('What was your specific role there?', 'What would you do differently?').\n"
+    "- Use the CANDIDATE BACKGROUND below to make questions personal and specific to THEM - "
+    "reference their projects, experience, or interests, especially for non-technical questions.\n"
+    "- After about {max_q} questions, wrap up warmly with an honest summary, 2-3 concrete tips, and a score.\n\n"
+    "HANDLING BAD INPUT:\n"
+    "- If the candidate is vulgar, offensive, or clearly not taking it seriously, address it directly but "
+    "professionally ('Let's keep this professional so the practice is actually useful to you.'), steer back to "
+    "the question, do NOT play along or repeat the language, and reflect it in the final feedback and score.\n"
+    "- If an answer is empty, off-topic, or nonsense, gently say so and re-ask or simplify the question.\n\n"
+    "RESPONSE FORMAT - reply with this exact JSON structure and nothing else:\n"
+    '{{"feedback": "your natural reaction + brief coaching on their last answer (empty string for the very first question)", '
+    '"question": "your next question (empty string when the interview is complete)", '
     '"complete": false, '
-    '"summary": "only populated when complete is true - 3-4 sentence overall assessment"}}\n\n'
+    '"summary": "only when complete is true: 3-4 sentence honest overall assessment", '
+    '"score": 0}}\n'
+    "When complete is true, set score to an integer 0-100 for overall performance "
+    "(structure, specificity, relevance, communication, professionalism).\n\n"
+    "CANDIDATE BACKGROUND (use to personalize; may say none):\n{background}\n\n"
     "JOB DESCRIPTION:\n{jd}\n\n"
     "ROLE: {role}"
 ).replace("{max_q}", str(_MAX_QUESTIONS))
@@ -110,8 +126,12 @@ def _chat_json(messages: list[dict[str, str]]) -> tuple[str, dict[str, Any]]:
     raise last_err if last_err else RuntimeError("LLM JSON parse failed")
 
 
-def _build_system_message(jd: str, role: str) -> str:
-    return SYSTEM_PROMPT.format(jd=jd[:2000].strip(), role=role or "General")
+def _build_system_message(jd: str, role: str, background: str = "") -> str:
+    bg = (background or "").strip()
+    bg = bg[:2500] if bg else "(no extra background provided)"
+    return SYSTEM_PROMPT.format(
+        jd=jd[:2000].strip(), role=role or "General", background=bg
+    )
 
 
 def _jd_questions(jd: str, role: str) -> list[str]:
@@ -133,9 +153,12 @@ def _row_to_session(row: dict) -> dict[str, Any]:
     state.setdefault("use_llm", False)
     state["jd"] = row.get("jd") or state.get("jd", "")
     state["role"] = row.get("role") or state.get("role", "")
+    state.setdefault("background", "")
+    state.setdefault("pending_question", "")
     state["_summary"] = row.get("summary") or ""
     state["_complete"] = bool(row.get("complete"))
     state["_user_id"] = row.get("user_id")
+    state["_score"] = row.get("score")
     return state
 
 
@@ -149,7 +172,7 @@ def _load(session_id: str) -> Optional[dict[str, Any]]:
         conn = get_conn()
         cur = conn.cursor(dictionary=True)
         cur.execute(
-            "SELECT id, user_id, role, jd, state, summary, complete "
+            "SELECT id, user_id, role, jd, state, summary, complete, score "
             "FROM interview_sessions WHERE id=%s",
             (session_id,),
         )
@@ -186,12 +209,13 @@ def _save(session_id: str, session: dict[str, Any]) -> None:
         cur.execute(
             """
             INSERT INTO interview_sessions
-                (id, user_id, role, jd, state, summary, complete)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (id, user_id, role, jd, state, summary, complete, score)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 state=VALUES(state),
                 summary=VALUES(summary),
-                complete=VALUES(complete)
+                complete=VALUES(complete),
+                score=VALUES(score)
             """,
             (
                 session_id,
@@ -201,6 +225,7 @@ def _save(session_id: str, session: dict[str, Any]) -> None:
                 state_json,
                 session.get("_summary") or None,
                 bool(session.get("_complete")),
+                session.get("_score"),
             ),
         )
         conn.commit()
@@ -216,13 +241,19 @@ def _save(session_id: str, session: dict[str, Any]) -> None:
 # -- Public API ------------------------------------------------------------
 
 
-def create_session(jd: str, role: Optional[str] = None, user_id: Optional[int] = None) -> dict:
+def create_session(
+    jd: str,
+    role: Optional[str] = None,
+    user_id: Optional[int] = None,
+    background: Optional[str] = None,
+) -> dict:
     session_id = str(uuid.uuid4())
     use_llm = _llm_available()
 
     session: dict[str, Any] = {
         "jd": jd,
         "role": role or "",
+        "background": background or "",
         "history": [],
         "current_index": 0,
         "use_llm": use_llm,
@@ -231,11 +262,12 @@ def create_session(jd: str, role: Optional[str] = None, user_id: Optional[int] =
         "_user_id": user_id,
         "_summary": "",
         "_complete": False,
+        "_score": None,
     }
 
     first_question = ""
     if use_llm:
-        system_msg = _build_system_message(jd, role or "")
+        system_msg = _build_system_message(jd, role or "", background or "")
         session["llm_messages"] = [
             {"role": "system", "content": system_msg},
             {"role": "user", "content": "Please begin the interview with your first question."},
@@ -281,6 +313,11 @@ def get_next(session_id: str, answer: str) -> dict:
         if result.get("complete"):
             session["_complete"] = True
             session["_summary"] = result.get("summary") or _generate_summary(session["history"])
+            score = result.get("score")
+            if score is None:
+                score = _score_interview(session["history"])
+            session["_score"] = score
+            result["score"] = score
         _save(session_id, session)
 
     return result
@@ -317,6 +354,7 @@ def _get_next_llm(session: dict, answer: str) -> dict:
     question = (parsed.get("question") or "").strip()
     is_complete = parsed.get("complete", False)
     summary = (parsed.get("summary") or "").strip()
+    model_score = _clamp_score(parsed.get("score"))
 
     # A weak model sometimes returns empty/curt feedback. Backfill with the
     # deterministic heuristic so the candidate always gets useful coaching.
@@ -338,12 +376,14 @@ def _get_next_llm(session: dict, answer: str) -> dict:
     session["pending_question"] = question
 
     if is_complete or idx + 1 >= _MAX_QUESTIONS:
+        score = model_score if model_score is not None else _score_interview(session["history"])
         return {
             "question_number": idx + 1,
             "total_questions": _MAX_QUESTIONS,
             "feedback": feedback,
             "complete": True,
             "summary": summary or _generate_summary(session["history"]),
+            "score": score,
         }
 
     return {
@@ -387,6 +427,7 @@ def _get_next_static(session: dict, answer: str) -> dict:
         result["next_question"] = next_question
     else:
         result["summary"] = _generate_summary(session["history"])
+        result["score"] = _score_interview(session["history"])
 
     return result
 
@@ -408,6 +449,7 @@ def get_session(session_id: str) -> dict:
         "complete": is_complete,
         "history": session["history"],
         "summary": session.get("_summary", ""),
+        "score": session.get("_score"),
     }
 
 
@@ -417,14 +459,19 @@ def end_session(session_id: str) -> dict:
         return {"error": "session_not_found"}
 
     summary = session.get("_summary") or _generate_summary(session["history"])
+    score = session.get("_score")
+    if score is None:
+        score = _score_interview(session["history"])
     session["_complete"] = True
     session["_summary"] = summary
+    session["_score"] = score
     _save(session_id, session)
 
     return {
         "session_id": session_id,
         "questions_answered": len(session["history"]),
         "summary": summary,
+        "score": score,
     }
 
 
@@ -436,7 +483,7 @@ def list_sessions(user_id: Optional[int], limit: int = 20) -> list[dict]:
         cur = conn.cursor(dictionary=True)
         cur.execute(
             """
-            SELECT id, role, jd, summary, complete, created_at
+            SELECT id, role, jd, summary, complete, score, created_at
             FROM interview_sessions
             WHERE user_id = %s
             ORDER BY created_at DESC
@@ -451,6 +498,7 @@ def list_sessions(user_id: Optional[int], limit: int = 20) -> list[dict]:
                 "role": row.get("role") or "",
                 "complete": bool(row.get("complete")),
                 "summary": row.get("summary") or "",
+                "score": row.get("score"),
                 "created_at": str(row.get("created_at")),
             }
             for row in rows
@@ -463,6 +511,47 @@ def list_sessions(user_id: Optional[int], limit: int = 20) -> list[dict]:
             cur.close()
         if conn:
             conn.close()
+
+
+def _clamp_score(value: Any) -> Optional[int]:
+    """Coerce a model-provided score into an int 0-100, or None if unusable."""
+    try:
+        if value is None:
+            return None
+        n = int(round(float(value)))
+        return max(0, min(100, n))
+    except (TypeError, ValueError):
+        return None
+
+
+_STRONG_WORDS = (
+    "example", "project", "result", "results", "achieved", "improved", "led",
+    "built", "reduced", "increased", "managed", "designed", "launched", "%",
+)
+
+
+def _score_interview(history: list) -> int:
+    """Deterministic interview score (0-100) from answer quality.
+
+    Used as a fallback when the model doesn't return a score, so the user
+    always gets a number. Rewards length + specificity across answers.
+    """
+    answered = [h for h in history if (h.get("answer") or "").strip()]
+    if not answered:
+        return 0
+    pts = 0
+    for h in answered:
+        a = (h.get("answer") or "").strip()
+        low = a.lower()
+        s = 0
+        if len(a) >= 40:
+            s += 1
+        if len(a) >= 120:
+            s += 1
+        if any(w in low for w in _STRONG_WORDS):
+            s += 1
+        pts += s
+    return int(round((pts / (len(answered) * 3)) * 100))
 
 
 def _generate_feedback(question: str, answer: str) -> str:

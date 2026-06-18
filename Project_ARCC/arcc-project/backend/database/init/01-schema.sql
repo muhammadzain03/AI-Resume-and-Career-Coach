@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS interview_sessions (
     jd           LONGTEXT NULL,
     state        LONGTEXT NOT NULL,
     summary      LONGTEXT NULL,
+    score        INT NULL,
     complete     BOOLEAN NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

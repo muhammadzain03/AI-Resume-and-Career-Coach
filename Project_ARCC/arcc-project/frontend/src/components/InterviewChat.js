@@ -7,12 +7,13 @@ const getSpeechRecognition = () =>
     ? window.SpeechRecognition || window.webkitSpeechRecognition
     : null;
 
-const InterviewChat = ({ jobDescription, role = "" }) => {
+const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [finalScore, setFinalScore] = useState(null);
   const [voiceOut, setVoiceOut] = useState(true);
   const [listening, setListening] = useState(false);
   const [hostSpeaking, setHostSpeaking] = useState(false);
@@ -85,13 +86,24 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
       }
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.rate = 0.95;
-      u.pitch = 1.0;
+      // Slightly slower than natural with a touch more pitch reads warmer and
+      // less robotic; high-quality neural voices below carry the rest.
+      u.rate = 1.0;
+      u.pitch = 1.05;
 
       const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(
-        (v) => v.lang.startsWith("en") && v.name.toLowerCase().includes("female")
-      ) || voices.find((v) => v.lang.startsWith("en"));
+      const en = voices.filter((v) => v.lang && v.lang.startsWith("en"));
+      // Prefer modern neural/natural voices, then known good named voices,
+      // then any female en voice, then any en voice.
+      const preferred =
+        en.find((v) => /natural|neural|online/i.test(v.name)) ||
+        en.find((v) =>
+          /(google).*(us|uk|english)|samantha|jenny|aria|libby|sonia|google uk english female/i.test(
+            v.name
+          )
+        ) ||
+        en.find((v) => /female/i.test(v.name)) ||
+        en[0];
       if (preferred) u.voice = preferred;
 
       u.onstart = () => setHostSpeaking(true);
@@ -158,7 +170,7 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
   useEffect(() => {
     const initInterview = async () => {
       try {
-        const result = await startInterview(jobDescription, role);
+        const result = await startInterview(jobDescription, role, resumeId);
         setSessionId(result.session_id);
         setTotalQuestions(result.total_questions);
         setQuestionNum(1);
@@ -172,7 +184,7 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
       }
     };
     initInterview();
-  }, [jobDescription, role]);
+  }, [jobDescription, role, resumeId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -193,9 +205,13 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
 
       if (result.complete) {
         const summaryText = result.summary || "Great job completing the interview!";
+        if (typeof result.score === "number") setFinalScore(result.score);
         setMessages((msgs) => [
           ...msgs,
           { type: "system", text: "Interview complete!" },
+          ...(typeof result.score === "number"
+            ? [{ type: "score", text: result.score }]
+            : []),
           { type: "summary", text: summaryText },
         ]);
         setFinished(true);
@@ -224,9 +240,13 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
       stopListening();
       const result = await endInterview(sessionId);
       setFinished(true);
+      if (typeof result.score === "number") setFinalScore(result.score);
       setMessages((msgs) => [
         ...msgs,
         { type: "system", text: "Interview ended." },
+        ...(typeof result.score === "number"
+          ? [{ type: "score", text: result.score }]
+          : []),
         ...(result.summary
           ? [{ type: "summary", text: result.summary }]
           : []),
@@ -312,7 +332,9 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
                 : loading
                   ? "Thinking..."
                   : finished
-                    ? "Interview complete"
+                    ? finalScore != null
+                      ? `Complete · scored ${finalScore}%`
+                      : "Interview complete"
                     : "Ready"}
           </p>
 
@@ -353,19 +375,48 @@ const InterviewChat = ({ jobDescription, role = "" }) => {
         {/* Chat Panel */}
         <div className="interview-chat-panel">
           <div className="interview-chat-messages">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`interview-msg interview-msg--${msg.type}`}
-              >
-                <span className={`interview-msg__icon interview-msg__icon--${msg.type}`}>
-                  {msgIcon(msg.type)}
+            {messages.map((msg, idx) => {
+              if (msg.type === "score") {
+                const score = Number(msg.text);
+                const tone =
+                  score >= 75 ? "high" : score >= 50 ? "mid" : "low";
+                return (
+                  <div
+                    key={idx}
+                    className={`interview-score-card interview-score-card--${tone}`}
+                  >
+                    <span className="interview-score-card__num">{score}</span>
+                    <span className="interview-score-card__label">
+                      Interview score
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={idx}
+                  className={`interview-msg interview-msg--${msg.type}`}
+                >
+                  <span className={`interview-msg__icon interview-msg__icon--${msg.type}`}>
+                    {msgIcon(msg.type)}
+                  </span>
+                  <div className="interview-msg__bubble">
+                    <p className="interview-msg__text">{msg.text}</p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {loading && (
+              <div className="interview-msg interview-msg--question">
+                <span className="interview-msg__icon interview-msg__icon--question">
+                  Q
                 </span>
-                <div className="interview-msg__bubble">
-                  <p className="interview-msg__text">{msg.text}</p>
+                <div className="interview-msg__bubble interview-typing" aria-label="Coach is thinking">
+                  <span /><span /><span />
                 </div>
               </div>
-            ))}
+            )}
             <div ref={chatEndRef} />
           </div>
 

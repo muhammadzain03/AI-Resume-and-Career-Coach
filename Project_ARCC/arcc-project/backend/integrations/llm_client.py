@@ -89,12 +89,15 @@ _FALLBACK_SUGGESTIONS = [
 ]
 
 _SCORE_WEIGHTS = {
-    "keyword_match": 0.30,
-    "formatting": 0.15,
-    "spelling_grammar": 0.15,
-    "impact_metrics": 0.25,
-    "section_order": 0.15,
+    "keyword_match": 0.24,
+    "requirements_match": 0.20,
+    "impact_metrics": 0.18,
+    "formatting": 0.13,
+    "spelling_grammar": 0.12,
+    "section_order": 0.13,
 }
+
+_VALID_REQ_STATUS = {"met", "missing", "unclear"}
 
 STOPWORDS = set([
     "is", "are", "the", "of", "and", "or", "a", "about", "an", "into", "for", "with",
@@ -131,6 +134,7 @@ def _fallback_bundle(overlap: dict) -> dict:
         "match_score": base_score,
         "score_breakdown": {
             "keyword_match": round(base_score),
+            "requirements_match": 50,
             "formatting": 50,
             "spelling_grammar": 50,
             "impact_metrics": 50,
@@ -138,8 +142,30 @@ def _fallback_bundle(overlap: dict) -> dict:
         },
         "matched_skills": overlap["matched_skills"],
         "missing_skills": filter_skills(overlap["missing_skills"]),
+        "hard_requirements": [],
         "suggestions": list(_FALLBACK_SUGGESTIONS),
     }
+
+
+def _coerce_hard_requirements(raw: Any) -> list[dict]:
+    """Normalize the model's hard-requirement findings (eligibility, etc.)."""
+    out = []
+    for r in raw or []:
+        if not isinstance(r, dict):
+            continue
+        req = str(r.get("requirement", "")).strip()
+        if not req:
+            continue
+        status = str(r.get("status", "unclear")).strip().lower()
+        if status not in _VALID_REQ_STATUS:
+            status = "unclear"
+        note = str(r.get("note", "")).strip()
+        out.append({
+            "requirement": req[:200],
+            "status": status,
+            "note": note[:300],
+        })
+    return out[:10]
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
@@ -248,11 +274,14 @@ def _coerce_analysis_payload(
         if not missing_skills:
             missing_skills = filter_skills(overlap["missing_skills"])
 
+        hard_requirements = _coerce_hard_requirements(raw.get("hard_requirements"))
+
         return {
             "match_score": match_score,
             "score_breakdown": breakdown,
             "matched_skills": overlap["matched_skills"],
             "missing_skills": missing_skills,
+            "hard_requirements": hard_requirements,
             "suggestions": suggestions,
         }
     except (TypeError, ValueError):
@@ -293,6 +322,7 @@ def pack_analysis_for_db(payload: dict) -> str:
             "missing_skills": payload.get("missing_skills", []),
             "suggestions": payload.get("suggestions", []),
             "score_breakdown": payload.get("score_breakdown", {}),
+            "hard_requirements": payload.get("hard_requirements", []),
         },
         ensure_ascii=False,
     )
@@ -305,6 +335,7 @@ def unpack_analysis_from_db(raw: str | None) -> dict:
         "missing_skills": [],
         "suggestions": [],
         "score_breakdown": {},
+        "hard_requirements": [],
     }
     if not raw or not str(raw).strip():
         return empty
@@ -324,6 +355,9 @@ def unpack_analysis_from_db(raw: str | None) -> dict:
                 "missing_skills": list(data.get("missing_skills") or []),
                 "suggestions": suggestions,
                 "score_breakdown": data.get("score_breakdown") or {},
+                "hard_requirements": _coerce_hard_requirements(
+                    data.get("hard_requirements")
+                ),
             }
         except json.JSONDecodeError:
             pass
@@ -339,6 +373,7 @@ def unpack_analysis_from_db(raw: str | None) -> dict:
         "missing_skills": [],
         "suggestions": legacy_suggestions,
         "score_breakdown": {},
+        "hard_requirements": [],
     }
 
 
@@ -359,20 +394,31 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
     j_short = job_description[:_MAX_CHARS]
 
     system = (
-        "You are an expert resume analyst. Compare the resume against the job description.\n\n"
+        "You are an expert technical recruiter and resume analyst. Judge the resume "
+        "against the job description the way a real hiring manager and ATS would - "
+        "looking at the WHOLE candidate, not just keyword overlap.\n\n"
         "Return ONE JSON object with this exact schema (no markdown, no prose):\n"
         "{\n"
         '  "score_breakdown": {\n'
         '    "keyword_match": <0-100>,\n'
+        '    "requirements_match": <0-100>,\n'
+        '    "impact_metrics": <0-100>,\n'
         '    "formatting": <0-100>,\n'
         '    "spelling_grammar": <0-100>,\n'
-        '    "impact_metrics": <0-100>,\n'
         '    "section_order": <0-100>\n'
         "  },\n"
         '  "missing_skills": ["string", ...],\n'
+        '  "hard_requirements": [\n'
+        "    {\n"
+        '      "requirement": "a concrete must-have from the JD (e.g. US work authorization, '
+        '5+ years experience, bachelor\'s in CS, security clearance, on-site in Berlin, valid license)",\n'
+        '      "status": "met | missing | unclear",\n'
+        '      "note": "one short sentence on why, citing the resume"\n'
+        "    }\n"
+        "  ],\n"
         '  "suggestions": [\n'
         "    {\n"
-        '      "category": "Section Order | Bullet Improvement | Missing Keyword | Formatting | Spelling | Impact Metrics",\n'
+        '      "category": "Section Order | Bullet Improvement | Missing Keyword | Formatting | Spelling | Impact Metrics | Requirement",\n'
         '      "section": "which resume section (e.g. Skills, Experience > Job Title, Projects > Project Name, Education)",\n'
         '      "text": "specific actionable instruction with before/after examples where applicable",\n'
         '      "priority": "high | medium | low"\n'
@@ -381,23 +427,31 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
         "}\n\n"
         "SCORING RULES:\n"
         "- keyword_match: % of technical skills/tools/languages from the JD found in the resume. "
-        "Only count real technical terms (languages, frameworks, tools, platforms, certifications, methodologies). "
-        "Ignore generic English words.\n"
-        "- formatting: consistent bullet style, proper section headers, appropriate length (1-2 pages), "
-        "clean whitespace, no walls of text.\n"
-        "- spelling_grammar: typos, grammatical errors, inconsistent tense, missing articles.\n"
-        "- impact_metrics: presence of quantifiable results (numbers, percentages, dollar amounts, scale). "
-        "Score low if bullets say 'Worked on X' without measurable outcomes.\n"
-        "- section_order: sections ordered appropriately for career level "
-        "(junior: Education then Experience; senior: Experience first). "
-        "Skills section positioned for maximum visibility.\n\n"
+        "Only count real technical terms. Ignore generic English words.\n"
+        "- requirements_match: how well the candidate meets the JD's HARD requirements - "
+        "years of experience, required degree/field, certifications/licenses, work authorization or "
+        "citizenship, security clearance, location/relocation/on-site, seniority level, domain experience. "
+        "If the JD demands something the resume does not evidence, this score drops sharply. "
+        "A perfect keyword match with unmet hard requirements is NOT a strong candidate.\n"
+        "- impact_metrics: presence of quantifiable results (numbers, %, $, scale). "
+        "Score low if bullets say 'Worked on X' with no measurable outcome.\n"
+        "- formatting: consistent bullets, clear section headers, appropriate length, clean whitespace, "
+        "logical structure that an ATS can parse.\n"
+        "- spelling_grammar: typos, grammar, inconsistent tense.\n"
+        "- section_order: sections ordered appropriately for career level; skills positioned for visibility.\n\n"
+        "HARD REQUIREMENTS RULES:\n"
+        "- Extract every genuine must-have from the JD (eligibility, experience, education, certs, "
+        "clearance, location, language). List 3-8 of the most important.\n"
+        "- Mark status 'missing' only when the JD clearly requires it AND the resume does not show it. "
+        "Use 'unclear' when the resume neither confirms nor denies it (e.g. citizenship rarely stated). "
+        "Never invent requirements the JD does not state.\n"
+        "- For each 'missing' or 'unclear' hard requirement, also add a matching suggestion with "
+        'category "Requirement" and priority "high" telling the user how to address it.\n\n'
         "SUGGESTION RULES:\n"
         "- Provide 5-12 suggestions, each referencing a SPECIFIC section and location in the resume.\n"
         "- For Bullet Improvement, quote the original bullet text and show an improved version.\n"
         "- For Section Order, say exactly which section to move and where.\n"
         "- For Missing Keyword, say where to naturally weave in the missing term.\n"
-        "- For Formatting issues, describe exactly what to fix.\n"
-        "- For Spelling issues, quote the error and the correction.\n"
         "- missing_skills: only real technical terms (tools, languages, frameworks, platforms, certifications). "
         "Do NOT include generic words like 'experience', 'knowledge', 'skills'.\n"
         "- Scale: 0-40 unrelated, 40-70 partial match, 70-90 good, 90-100 near-perfect.\n\n"
