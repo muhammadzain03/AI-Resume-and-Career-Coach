@@ -96,8 +96,8 @@ describe("AnalyzePage", () => {
     expect(getAnalysis).toHaveBeenCalledWith(42);
 
     expect(view.container.textContent).toContain("Results");
-    // Score is rendered rounded in the result ring (72.5 -> 73).
-    expect(view.container.textContent).toContain("73");
+    // The score ring counts up (animated), so assert on the stable verdict
+    // rather than the in-flight number.
     expect(view.container.textContent).toContain("Good match");
     expect(view.container.textContent).toContain("Kubernetes");
     expect(view.container.textContent).toContain("Score Breakdown");

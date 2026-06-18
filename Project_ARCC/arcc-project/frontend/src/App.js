@@ -9,6 +9,7 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import VerifyPendingPage from "./pages/VerifyPendingPage";
 import OverviewPage from "./pages/OverviewPage";
 import AnalyzePage from "./pages/AnalyzePage";
+import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import InterviewPage from "./pages/InterviewPage";
 import HistoryPage from "./pages/HistoryPage";
 import "./styles/main.css";
@@ -65,6 +66,7 @@ function App() {
         <Route path="analyze" element={<AnalyzePage />} />
         <Route path="interview" element={<InterviewPage />} />
         <Route path="history" element={<HistoryPage />} />
+        <Route path="history/:analysisId" element={<AnalysisDetailPage />} />
       </Route>
     </Routes>
   );

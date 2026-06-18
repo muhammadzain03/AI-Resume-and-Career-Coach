@@ -83,6 +83,7 @@ def ensure_engine_schema(cur, verbose=False):
             jd           LONGTEXT NULL,
             state        LONGTEXT NOT NULL,
             summary      LONGTEXT NULL,
+            score        INT NULL,
             complete     BOOLEAN NOT NULL DEFAULT FALSE,
             created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -95,6 +96,13 @@ def ensure_engine_schema(cur, verbose=False):
         """
     )
     log("Ensured interview_sessions table")
+
+    # score column for interviews created before the scorer existed
+    if _table_exists(cur, "interview_sessions") and not _column_exists(
+        cur, "interview_sessions", "score"
+    ):
+        cur.execute("ALTER TABLE interview_sessions ADD COLUMN score INT NULL")
+        log("Added interview_sessions.score")
 
 
 def apply_on_startup():

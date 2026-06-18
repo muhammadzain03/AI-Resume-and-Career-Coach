@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getHistory,
   getInterviewHistory,
@@ -41,6 +42,11 @@ const InterviewHistoryCard = ({ item }) => {
       <p className="history-date">
         {item.created_at ? new Date(item.created_at).toLocaleString() : ""}
       </p>
+      {typeof item.score === "number" && (
+        <p className="history-score" style={{ color: scoreColor(item.score) }}>
+          Interview score: {item.score}%
+        </p>
+      )}
       {item.summary && <p className="history-meta">{item.summary}</p>}
 
       <button
@@ -89,6 +95,7 @@ const InterviewHistoryCard = ({ item }) => {
 };
 
 const HistoryPage = () => {
+  const navigate = useNavigate();
   const [analyses, setAnalyses] = useState([]);
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,14 +143,29 @@ const HistoryPage = () => {
             {analyses.length ? (
               <div className="history-list">
                 {analyses.map((item) => (
-                  <Card key={item.analysis_id} className="history-card">
+                  <Card
+                    key={item.analysis_id}
+                    className="history-card history-card--clickable"
+                    onClick={() => navigate(`/app/history/${item.analysis_id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        navigate(`/app/history/${item.analysis_id}`);
+                      }
+                    }}
+                  >
+                    <span className="history-card__open" aria-hidden="true">
+                      Open →
+                    </span>
                     <h3>{item.job_title || "Untitled Role"}</h3>
                     <p className="history-meta">Resume: {item.filename}</p>
                     <p
                       className="history-score"
                       style={{ color: scoreColor(item.match_score) }}
                     >
-                      Score: {item.match_score}%
+                      Score: {Math.round(item.match_score)}%
                     </p>
                     <p className="history-date">
                       {new Date(item.created_at).toLocaleString()}
