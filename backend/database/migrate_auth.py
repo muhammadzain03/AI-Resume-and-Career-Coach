@@ -1,18 +1,18 @@
-"""Apply auth-related schema changes to an existing RCC MySQL database."""
+"""Apply auth-related schema changes to an existing RCC PostgreSQL database."""
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import mysql.connector
+import psycopg2
 from config import Config
 
 COLUMNS = [
-    ("name", "VARCHAR(100) NULL"),
-    ("google_id", "VARCHAR(255) NULL"),
+    ("name", "VARCHAR(100)"),
+    ("google_id", "VARCHAR(255)"),
     ("email_verified", "BOOLEAN NOT NULL DEFAULT FALSE"),
-    ("verification_token", "VARCHAR(255) NULL"),
-    ("avatar_url", "TEXT NULL"),
+    ("verification_token", "VARCHAR(255)"),
+    ("avatar_url", "TEXT"),
 ]
 
 
@@ -20,34 +20,42 @@ def column_exists(cur, table, column):
     cur.execute(
         """
         SELECT COUNT(*) AS c
-        FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s
+        FROM information_schema.columns
+        WHERE table_schema='public' AND table_name=%s AND column_name=%s
         """,
-        (Config.DB_NAME, table, column),
+        (table, column),
+    )
+    return cur.fetchone()[0] > 0
+
+
+def index_exists(cur, index):
+    cur.execute(
+        "SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public' AND indexname=%s",
+        (index,),
     )
     return cur.fetchone()[0] > 0
 
 
 def main():
-    conn = mysql.connector.connect(
+    conn = psycopg2.connect(
         host=Config.DB_HOST,
         port=Config.DB_PORT,
         user=Config.DB_USER,
         password=Config.DB_PASSWORD,
-        database=Config.DB_NAME,
+        dbname=Config.DB_NAME,
     )
     cur = conn.cursor()
     try:
         cur.execute(
             """
-            SELECT IS_NULLABLE FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA=%s AND TABLE_NAME='users' AND COLUMN_NAME='password_hash'
-            """,
-            (Config.DB_NAME,),
+            SELECT is_nullable FROM information_schema.columns
+            WHERE table_schema='public' AND table_name='users'
+                AND column_name='password_hash'
+            """
         )
         row = cur.fetchone()
         if row and row[0] == "NO":
-            cur.execute("ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL")
+            cur.execute("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL")
             print("Made users.password_hash nullable")
 
         for name, definition in COLUMNS:
@@ -55,14 +63,7 @@ def main():
                 cur.execute(f"ALTER TABLE users ADD COLUMN {name} {definition}")
                 print(f"Added users.{name}")
 
-        cur.execute(
-            """
-            SELECT COUNT(*) FROM information_schema.STATISTICS
-            WHERE TABLE_SCHEMA=%s AND TABLE_NAME='users' AND INDEX_NAME='idx_users_google_id'
-            """,
-            (Config.DB_NAME,),
-        )
-        if cur.fetchone()[0] == 0:
+        if not index_exists(cur, "idx_users_google_id"):
             cur.execute(
                 "CREATE UNIQUE INDEX idx_users_google_id ON users (google_id)"
             )

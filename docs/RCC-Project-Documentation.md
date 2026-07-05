@@ -15,8 +15,8 @@ Planning docs (do not replace this file):
 
 ```
 ┌------┐        ┌--------┐        ┌-----┐
-│  React SPA │-API-▶│  Flask Backend │-SQL-▶│  MySQL   │
-│  port 3000 │◀-JSON-│  port 5000     │        │  port 3307│
+│  React SPA │-API-▶│  Flask Backend │-SQL-▶│ PostgreSQL │
+│  port 3000 │◀-JSON-│  port 5000     │        │  port 5432│
 └------┘        └----┬----┘        └-----┘
                               │
                       ┌----▼----┐
@@ -39,7 +39,7 @@ Planning docs (do not replace this file):
 | | `services/resume_parser.py` | PDF / DOCX / TXT extraction (pdfplumber + pypdf) |
 | | `services/email_service.py` | Verification and welcome email |
 | Integrations | `integrations/llm_client.py` | Gemini via OpenAI-compatible API |
-| Data | `database/db.py` | MySQL connection pool |
+| Data | `database/db.py` | PostgreSQL connection helper (psycopg2) |
 | | `database/init/01-schema.sql` | Canonical DB schema (Docker init) |
 | | `database/migrate_auth.py` | Upgrade legacy databases (auth) |
 | | `database/migrate_engine.py` | Upgrade legacy databases (sessions + cache) |
@@ -83,7 +83,7 @@ Legacy paths (`/upload`, `/job`, `/dashboard`, `/interview`) redirect to the rou
 
 ### Deployment
 
-- **Docker Compose**: `database` (MySQL 8 on host port 3307), `backend`, `frontend`
+- **Docker Compose**: `database` (PostgreSQL 18 on host port 5432), `backend`, `frontend`
 - **Local**: `start-arcc.bat` or `docker compose up database -d` + Flask + React (batch files are local-only, gitignored)
 - **Env**: `backend/.env`, `frontend/.env.local` (local only, gitignored)
 
@@ -171,10 +171,10 @@ Protected routes require header: `Authorization: Bearer <access_token>`
 
 | File | Purpose |
 |------|---------|
-| `backend/database/init/01-schema.sql` | **Canonical schema** - runs on first Docker MySQL boot |
+| `backend/database/init/01-schema.sql` | **Canonical schema** - runs on first Docker PostgreSQL boot |
 | `backend/database/migrate_auth.py` | One-time upgrade for databases created before auth columns |
 | `backend/database/migrate_engine.py` | One-time upgrade: `interview_sessions` table + `analysis_results.input_hash` |
-| `backend/database/db.py` | MySQL connection pool used by the Flask app |
+| `backend/database/db.py` | PostgreSQL connection helper (psycopg2) used by the Flask app |
 
 ### Fresh install (Docker)
 

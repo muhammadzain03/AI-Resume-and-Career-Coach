@@ -4,9 +4,9 @@ LLM-powered interview session engine.
 Uses Gemini (OpenAI-compat) for dynamic questions, follow-ups, and feedback.
 Falls back to a static question bank when no LLM key is configured.
 
-Sessions are persisted in the `interview_sessions` MySQL table so they survive
-server restarts and work across multiple workers. A module-level dict is kept
-only as an optional fast-path cache in front of the database.
+Sessions are persisted in the `interview_sessions` PostgreSQL table so they
+survive server restarts and work across multiple workers. A module-level dict
+is kept only as an optional fast-path cache in front of the database.
 """
 
 from __future__ import annotations
@@ -211,11 +211,12 @@ def _save(session_id: str, session: dict[str, Any]) -> None:
             INSERT INTO interview_sessions
                 (id, user_id, role, jd, state, summary, complete, score)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                state=VALUES(state),
-                summary=VALUES(summary),
-                complete=VALUES(complete),
-                score=VALUES(score)
+            ON CONFLICT (id) DO UPDATE SET
+                state=EXCLUDED.state,
+                summary=EXCLUDED.summary,
+                complete=EXCLUDED.complete,
+                score=EXCLUDED.score,
+                updated_at=CURRENT_TIMESTAMP
             """,
             (
                 session_id,

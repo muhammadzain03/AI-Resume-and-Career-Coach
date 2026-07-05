@@ -75,11 +75,12 @@ def register():
             INSERT INTO users
                 (email, password_hash, name, email_verified, verification_token)
             VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (email, hashed, name or None, False, verification_token),
         )
+        user_id = cur.fetchone()["id"]
         conn.commit()
-        user_id = cur.lastrowid
 
         cur.execute(
             """
@@ -204,10 +205,11 @@ def google_auth():
                     INSERT INTO users
                         (email, google_id, name, avatar_url, email_verified, password_hash)
                     VALUES (%s, %s, %s, %s, TRUE, NULL)
+                    RETURNING id
                     """,
                     (email, google_sub, name or None, avatar),
                 )
-                user = {"id": cur.lastrowid}
+                user = {"id": cur.fetchone()["id"]}
             conn.commit()
 
         cur.execute(

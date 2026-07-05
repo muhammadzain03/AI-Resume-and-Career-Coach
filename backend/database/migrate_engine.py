@@ -1,12 +1,12 @@
-"""Apply RCC-Engine-Plan schema changes to an existing RCC MySQL database.
+"""Apply RCC-Engine-Plan schema changes to an existing RCC PostgreSQL database.
 
 Adds:
 - analysis_results.input_hash   (M1 - analysis cache)
 - interview_sessions table      (C1 - persistent sessions, H2 - reviewable results)
 
-Idempotent: every change is guarded by an existence check, so it is safe to
-run repeatedly and is also invoked automatically on backend startup.
-Run standalone with:  python database/migrate_engine.py
+Idempotent: every change is guarded by an existence check (or IF NOT EXISTS),
+so it is safe to run repeatedly and is also invoked automatically on backend
+startup. Run standalone with:  python database/migrate_engine.py
 """
 import logging
 import os
@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import mysql.connector
+import psycopg2
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -23,21 +23,18 @@ logger = logging.getLogger(__name__)
 def _column_exists(cur, table, column):
     cur.execute(
         """
-        SELECT COUNT(*) FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s
+        SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema='public' AND table_name=%s AND column_name=%s
         """,
-        (Config.DB_NAME, table, column),
+        (table, column),
     )
     return cur.fetchone()[0] > 0
 
 
-def _index_exists(cur, table, index):
+def _index_exists(cur, index):
     cur.execute(
-        """
-        SELECT COUNT(*) FROM information_schema.STATISTICS
-        WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME=%s
-        """,
-        (Config.DB_NAME, table, index),
+        "SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public' AND indexname=%s",
+        (index,),
     )
     return cur.fetchone()[0] > 0
 
@@ -45,10 +42,10 @@ def _index_exists(cur, table, index):
 def _table_exists(cur, table):
     cur.execute(
         """
-        SELECT COUNT(*) FROM information_schema.TABLES
-        WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_schema='public' AND table_name=%s
         """,
-        (Config.DB_NAME, table),
+        (table,),
     )
     return cur.fetchone()[0] > 0
 
@@ -63,10 +60,10 @@ def ensure_engine_schema(cur, verbose=False):
     if _table_exists(cur, "analysis_results"):
         if not _column_exists(cur, "analysis_results", "input_hash"):
             cur.execute(
-                "ALTER TABLE analysis_results ADD COLUMN input_hash CHAR(64) NULL"
+                "ALTER TABLE analysis_results ADD COLUMN input_hash CHAR(64)"
             )
             log("Added analysis_results.input_hash")
-        if not _index_exists(cur, "analysis_results", "idx_analysis_input_hash"):
+        if not _index_exists(cur, "idx_analysis_input_hash"):
             cur.execute(
                 "CREATE INDEX idx_analysis_input_hash "
                 "ON analysis_results (input_hash)"
@@ -78,22 +75,24 @@ def ensure_engine_schema(cur, verbose=False):
         """
         CREATE TABLE IF NOT EXISTS interview_sessions (
             id           VARCHAR(36) PRIMARY KEY,
-            user_id      INT NULL,
-            role         VARCHAR(255) NULL,
-            jd           LONGTEXT NULL,
-            state        LONGTEXT NOT NULL,
-            summary      LONGTEXT NULL,
-            score        INT NULL,
+            user_id      INT,
+            role         VARCHAR(255),
+            jd           TEXT,
+            state        TEXT NOT NULL,
+            summary      TEXT,
+            score        INT,
             complete     BOOLEAN NOT NULL DEFAULT FALSE,
             created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                             ON UPDATE CURRENT_TIMESTAMP,
+            updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT fk_interview_user
                 FOREIGN KEY (user_id) REFERENCES users(id)
-                ON DELETE SET NULL,
-            INDEX idx_interview_user (user_id)
+                ON DELETE SET NULL
         )
         """
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_interview_user "
+        "ON interview_sessions (user_id)"
     )
     log("Ensured interview_sessions table")
 
@@ -101,7 +100,7 @@ def ensure_engine_schema(cur, verbose=False):
     if _table_exists(cur, "interview_sessions") and not _column_exists(
         cur, "interview_sessions", "score"
     ):
-        cur.execute("ALTER TABLE interview_sessions ADD COLUMN score INT NULL")
+        cur.execute("ALTER TABLE interview_sessions ADD COLUMN score INT")
         log("Added interview_sessions.score")
 
 
@@ -129,12 +128,12 @@ def apply_on_startup():
 
 
 def main():
-    conn = mysql.connector.connect(
+    conn = psycopg2.connect(
         host=Config.DB_HOST,
         port=Config.DB_PORT,
         user=Config.DB_USER,
         password=Config.DB_PASSWORD,
-        database=Config.DB_NAME,
+        dbname=Config.DB_NAME,
     )
     cur = conn.cursor()
     try:

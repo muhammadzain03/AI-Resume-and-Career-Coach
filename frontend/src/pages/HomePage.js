@@ -189,7 +189,7 @@ const stats = [
   { text: "Real-time", label: "AI interview feedback" },
 ];
 
-const techStack = ["React", "Gemini", "Flask", "MySQL"];
+const techStack = ["React", "Gemini", "Flask", "PostgreSQL"];
 
 const whatItChecks = [
   "ATS parsing",

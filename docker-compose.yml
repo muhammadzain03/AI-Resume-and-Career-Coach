@@ -8,9 +8,9 @@ services:
       - database
     environment:
       DB_HOST: database
-      DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: root
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
       DB_NAME: arcc
     env_file:
       - ./backend/.env
@@ -32,16 +32,19 @@ services:
       REACT_APP_API_BASE: http://localhost:5000/api
 
   database:
-    image: mysql:8
+    image: postgres:18-alpine
     ports:
-      - "3307:3306"
+      - "5432:5432"
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: arcc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: arcc
     volumes:
-      - mysql_data:/var/lib/mysql
-      # Directory mount (reliable on Windows; avoid single-file bind mounts)
+      # Postgres 18+ images store data in a version-specific subdirectory, so the
+      # persistent volume mounts at /var/lib/postgresql (not /.../data).
+      - postgres_data:/var/lib/postgresql
+      # Directory mount runs *.sql on first init (empty data dir only)
       - ./backend/database/init:/docker-entrypoint-initdb.d:ro
 
 volumes:
-  mysql_data:
+  postgres_data:

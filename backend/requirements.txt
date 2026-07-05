@@ -5,7 +5,7 @@ flask-limiter
 flask-mail
 authlib
 google-auth
-mysql-connector-python
+psycopg2-binary
 python-dotenv
 requests
 pdfplumber

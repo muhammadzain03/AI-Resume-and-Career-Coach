@@ -142,10 +142,11 @@ def run_analysis():
             return jsonify({"error": "Analysis failed"}), 500
 
         cur.execute(
-            "INSERT INTO job_descriptions (user_id, description) VALUES (%s, %s)",
+            "INSERT INTO job_descriptions (user_id, description)"
+            " VALUES (%s, %s) RETURNING id",
             (parsed_user_id, job_description),
         )
-        job_id = cur.lastrowid
+        job_id = cur.fetchone()["id"]
 
         suggestions_blob = pack_analysis_for_db(payload)
 
@@ -154,6 +155,7 @@ def run_analysis():
             INSERT INTO analysis_results
                 (resume_id, job_id, match_score, suggestions, input_hash)
             VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (
                 resume_id,
@@ -163,7 +165,7 @@ def run_analysis():
                 cache_key,
             ),
         )
-        analysis_id = cur.lastrowid
+        analysis_id = cur.fetchone()["id"]
 
         conn.commit()
 

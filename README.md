@@ -16,7 +16,7 @@ A full-stack web application that helps job seekers optimize their resumes, prac
 | -------- | ----- |
 | Frontend | React 18, React Router v7, Framer Motion |
 | Backend  | Flask, Flask-JWT-Extended, Flask-Mail, Google OAuth |
-| Database | MySQL 8 (Docker on port 3307) |
+| Database | PostgreSQL 18 (Docker on port 5432) |
 | AI       | Google Gemini (OpenAI-compatible API) |
 
 ## Project Structure
@@ -63,7 +63,7 @@ AI-Resume-and-Career-Coach/
 | `JWT_SECRET_KEY` | Signs login tokens |
 | `GOOGLE_CLIENT_ID` | Google sign-in (match frontend `REACT_APP_GOOGLE_CLIENT_ID`) |
 | `MAIL_*` | Gmail SMTP for verification emails |
-| `DB_*` | MySQL (Docker: port **3307**, password **root**) |
+| `DB_*` | PostgreSQL (Docker: port **5432**, user/password **postgres**) |
 | `LLM_API_KEY` | Optional Gemini key |
 
 See `docs/RCC-Project-Documentation.md` for architecture, API, and database setup.

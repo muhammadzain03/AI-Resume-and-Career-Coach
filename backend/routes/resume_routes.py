@@ -61,11 +61,11 @@ def upload_resume():
             cur = conn.cursor()
             cur.execute(
                 "INSERT INTO resumes (user_id, filename, text_content)"
-                " VALUES (%s, %s, %s)",
+                " VALUES (%s, %s, %s) RETURNING id",
                 (parsed_user_id, filename, raw_text),
             )
+            resume_id = cur.fetchone()[0]
             conn.commit()
-            resume_id = cur.lastrowid
         except Exception:
             logger.exception("DB insert failed for file: %s", filename)
             return jsonify({"error": "Database error"}), 500
