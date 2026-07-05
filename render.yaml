@@ -36,6 +36,8 @@ services:
         sync: false
       - key: DB_NAME
         sync: false
+      - key: DB_SSLMODE
+        value: require              # managed Postgres (Neon/Supabase/etc.) requires SSL
 
       # --- Frontend origin (your Vercel URL, used in verification emails) ---
       - key: FRONTEND_URL
