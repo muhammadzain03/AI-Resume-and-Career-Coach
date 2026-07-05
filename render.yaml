@@ -1,0 +1,68 @@
+# Render Blueprint for the RCC Flask backend.
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
+# The frontend is deployed separately on Vercel (see frontend/vercel.json).
+#
+# Secrets and the database connection are marked `sync: false` so Render will
+# prompt you to fill them in the dashboard (they are never committed to git).
+services:
+  - type: web
+    name: rcc-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120
+    healthCheckPath: /api/auth/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+      # --- Auth ---
+      - key: JWT_SECRET_KEY
+        generateValue: true          # Render generates a strong secret
+      - key: JWT_ACCESS_TOKEN_EXPIRES
+        value: "3600"
+      - key: JWT_REFRESH_TOKEN_EXPIRES
+        value: "2592000"
+
+      # --- Database (paste from Render Postgres or Neon) ---
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+
+      # --- Frontend origin (your Vercel URL, used in verification emails) ---
+      - key: FRONTEND_URL
+        sync: false
+
+      # --- Google OAuth ---
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+      # --- Email (Gmail SMTP) ---
+      - key: MAIL_SERVER
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USE_TLS
+        value: "true"
+      - key: MAIL_USE_SSL
+        value: "false"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+
+      # --- Gemini LLM ---
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai
+      - key: LLM_MODEL
+        value: gemini-2.5-flash
