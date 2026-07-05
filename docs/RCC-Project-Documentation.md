@@ -4,7 +4,6 @@ Technical reference for the Resume & Career Coach app.
 
 Planning docs (do not replace this file):
 
-- `RCC-Rezzy-Plan.md` - landing page / Rezzy-style redesign plan
 - `RCC-Engine-Plan.md` - analysis engine and backend improvements plan
 
 ---

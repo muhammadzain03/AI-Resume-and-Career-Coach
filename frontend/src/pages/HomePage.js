@@ -6,7 +6,6 @@ import ProductFrame from "../components/ProductFrame";
 import FeatureSplit from "../components/FeatureSplit";
 import CountUp from "../components/CountUp";
 import FaqItem from "../components/FaqItem";
-import CodeSnippetTabs from "../components/CodeSnippetTabs";
 import Button from "../components/Button";
 import prefersReducedMotion from "../utils/prefersReducedMotion";
 
@@ -173,9 +172,6 @@ const featureSplits = [
   },
 ];
 
-const API_DOCS_URL =
-  "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/blob/main/docs/RCC-Project-Documentation.md#api-contract";
-
 const steps = [
   { step: "1", title: "Upload", desc: "Drop your resume in PDF or DOCX" },
   { step: "2", title: "Describe", desc: "Paste the job description you're targeting" },
@@ -188,8 +184,6 @@ const stats = [
   { to: 50, suffix: "+", label: "Skill categories tracked" },
   { text: "Real-time", label: "AI interview feedback" },
 ];
-
-const techStack = ["React", "Gemini", "Flask", "PostgreSQL"];
 
 const whatItChecks = [
   "ATS parsing",
@@ -227,10 +221,6 @@ const faqItems = [
   {
     q: "Is RCC free?",
     a: "Yes, it's free while in beta.",
-  },
-  {
-    q: "Who built this?",
-    a: "RCC is built by a software-engineering student as a real, deployed project - feedback is genuinely welcome.",
   },
 ];
 
@@ -319,9 +309,6 @@ const HomePage = () => {
             </div>
 
             <motion.div variants={heroFadeUp} className="home-hero__trust-bar">
-              {techStack.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
               {whatItChecks.map((item) => (
                 <span key={item}>{item}</span>
               ))}
@@ -441,32 +428,6 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section id="api" className="home-section">
-        <ScrollReveal>
-          <p className="home-section__eyebrow">Built for developers</p>
-          <h2 className="home-section__title">There&apos;s an API for that.</h2>
-          <p className="home-dev__lead">
-            RCC is API-first. Score resumes, fetch skill gaps, or wire it into
-            your own tools.
-          </p>
-        </ScrollReveal>
-        <ScrollReveal delay={0.12}>
-          <CodeSnippetTabs />
-          <div className="home-dev__cta">
-            <Button
-              as="a"
-              href={API_DOCS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn--pill btn--ghost"
-              arrow
-            >
-              Read the API docs
-            </Button>
-          </div>
-        </ScrollReveal>
-      </section>
-
       <section id="pricing" className="home-section home-section--glow home-section--glow-left">
         <ScrollReveal>
           <p className="home-section__eyebrow">Pricing</p>
@@ -489,20 +450,6 @@ const HomePage = () => {
               Get started free
             </Button>
           </div>
-        </ScrollReveal>
-      </section>
-
-      <section id="why-rcc" className="home-section home-founder">
-        <ScrollReveal>
-          <p className="home-section__eyebrow">About this project</p>
-          <h2 className="home-section__title">Why I built RCC</h2>
-          <p className="home-founder__body">
-            I&apos;m a software-engineering student who applied to a lot of roles
-            and got tired of guessing why resumes got rejected. RCC is the tool
-            I wanted: it tells you what an ATS sees, what a job actually asks
-            for, and how to close the gap - then helps you rehearse. It&apos;s
-            open about what it can and can&apos;t do.
-          </p>
         </ScrollReveal>
       </section>
 

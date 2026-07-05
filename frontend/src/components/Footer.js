@@ -5,8 +5,6 @@ import Button from "./Button";
 const DOCS_URL =
   "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/blob/main/docs/RCC-Project-Documentation.md";
 
-const API_DOCS_URL = `${DOCS_URL}#api-contract`;
-
 const FOOTER_COLUMNS = [
   {
     title: "Product",
@@ -20,7 +18,7 @@ const FOOTER_COLUMNS = [
     title: "Resources",
     links: [
       { label: "FAQ", href: "/#faq" },
-      { label: "API docs", href: API_DOCS_URL, external: true },
+      { label: "Privacy", href: "/#faq-privacy" },
     ],
   },
   {
@@ -31,7 +29,6 @@ const FOOTER_COLUMNS = [
         href: "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/issues",
         external: true,
       },
-      { label: "Privacy", href: "/#faq-privacy" },
       { label: "Terms", href: DOCS_URL, external: true },
     ],
   },
