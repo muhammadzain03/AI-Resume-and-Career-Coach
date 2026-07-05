@@ -324,4 +324,4 @@ The Render free plan spins the service down after a period of inactivity, so the
 
 ## License
 
-Developed as part of a university software engineering course (ENSF 400).
+This project is released for personal and educational use. All rights reserved by the author.
