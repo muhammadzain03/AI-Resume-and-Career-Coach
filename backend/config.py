@@ -13,6 +13,9 @@ class Config:
     DB_USER = os.getenv("DB_USER", "postgres")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
     DB_NAME = os.getenv("DB_NAME", "arcc")
+    # "prefer" negotiates SSL but falls back to plaintext (works with the local
+    # Docker container). Managed hosts like Neon require SSL: set DB_SSLMODE=require.
+    DB_SSLMODE = os.getenv("DB_SSLMODE", "prefer")
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", secrets.token_hex(32))
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", "3600"))

@@ -27,5 +27,6 @@ def get_conn():
         user=Config.DB_USER,
         password=Config.DB_PASSWORD,
         dbname=Config.DB_NAME,
+        sslmode=Config.DB_SSLMODE,
         connection_factory=_RCCConnection,
     )
