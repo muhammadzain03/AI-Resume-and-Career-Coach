@@ -11,19 +11,19 @@ RCC is a full-stack web application that helps job seekers improve their resumes
 
 ## Table of Contents
 
-1. Overview
-2. Key Features
-3. Architecture
-4. Technology Stack
-5. Repository Structure
-6. Local Development
-7. Environment Variables
-8. Database
-9. API Reference
-10. Deployment
-11. Testing
-12. Security Notes
-13. License
+1. [Overview](#overview)
+2. [Key Features](#key-features)
+3. [Architecture](#architecture)
+4. [Technology Stack](#technology-stack)
+5. [Repository Structure](#repository-structure)
+6. [Local Development](#local-development)
+7. [Environment Variables](#environment-variables)
+8. [Database](#database)
+9. [API Reference](#api-reference)
+10. [Deployment](#deployment)
+11. [Testing](#testing)
+12. [Security Notes](#security-notes)
+13. [License](#license)
 
 ## Overview
 
