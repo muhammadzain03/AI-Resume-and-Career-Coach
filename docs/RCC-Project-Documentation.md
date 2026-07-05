@@ -1,6 +1,6 @@
 # RCC Project Documentation
 
-Technical reference for the Resume & Career Coach app (`Project_ARCC/arcc-project`).
+Technical reference for the Resume & Career Coach app.
 
 Planning docs (do not replace this file):
 

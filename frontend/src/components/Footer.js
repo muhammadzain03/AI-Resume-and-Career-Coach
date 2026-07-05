@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Button from "./Button";
 
 const DOCS_URL =
-  "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/blob/main/Project_ARCC/arcc-project/docs/RCC-Project-Documentation.md";
+  "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/blob/main/docs/RCC-Project-Documentation.md";
 
 const API_DOCS_URL = `${DOCS_URL}#api-contract`;
 

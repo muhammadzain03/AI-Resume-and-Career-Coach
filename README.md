@@ -22,7 +22,7 @@ A full-stack web application that helps job seekers optimize their resumes, prac
 ## Project Structure
 
 ```
-Project_ARCC/arcc-project/
+AI-Resume-and-Career-Coach/
 ├- frontend/
 │   ├- src/
 │   │   ├- pages/          Home, auth, dashboard pages
@@ -50,7 +50,7 @@ Project_ARCC/arcc-project/
 1. Ensure `backend/.env` and `frontend/.env.local` exist (not committed to git).
 2. Start Docker Desktop, then:
    ```bash
-   cd Project_ARCC/arcc-project
+   cd AI-Resume-and-Career-Coach
    start-arcc.bat
    ```
    Or: `docker compose up database -d`, then `python backend/app.py` and `npm start` in `frontend/`.
@@ -66,7 +66,7 @@ Project_ARCC/arcc-project/
 | `DB_*` | MySQL (Docker: port **3307**, password **root**) |
 | `LLM_API_KEY` | Optional Gemini key |
 
-See `Project_ARCC/arcc-project/docs/RCC-Project-Documentation.md` for architecture, API, and database setup.
+See `docs/RCC-Project-Documentation.md` for architecture, API, and database setup.
 
 ## License
 

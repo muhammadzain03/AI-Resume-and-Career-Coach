@@ -174,7 +174,7 @@ const featureSplits = [
 ];
 
 const API_DOCS_URL =
-  "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/blob/main/Project_ARCC/arcc-project/docs/RCC-Project-Documentation.md#api-contract";
+  "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/blob/main/docs/RCC-Project-Documentation.md#api-contract";
 
 const steps = [
   { step: "1", title: "Upload", desc: "Drop your resume in PDF or DOCX" },
