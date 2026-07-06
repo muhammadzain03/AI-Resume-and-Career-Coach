@@ -22,12 +22,17 @@ def init_mail(app):
         MAIL_DEFAULT_SENDER=Config.MAIL_DEFAULT_SENDER or Config.MAIL_USERNAME,
     )
     mail.init_app(app)
+    if Config.mail_configured():
+        logger.info("Mail configured for sender %s", Config.MAIL_USERNAME)
+    else:
+        logger.warning("Mail is NOT configured - welcome emails will be skipped")
 
 
 def _send_async(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
+            logger.info("Welcome email sent to %s", msg.recipients)
         except Exception:
             logger.exception("Failed to send email to %s", msg.recipients)
 
@@ -36,15 +41,15 @@ def _dispatch(msg):
     """Send an email without blocking the request.
 
     SMTP delivery can take several seconds, so we hand the message off to a
-    background thread and return immediately. This keeps sign-up and sign-in
-    responses fast. If mail is not configured, we quietly skip sending.
+    background thread and return immediately. The thread is non-daemon so
+    gunicorn on Render does not tear it down before SMTP finishes.
     """
     if not Config.mail_configured():
-        logger.info("Mail not configured; skipping email to %s", msg.recipients)
+        logger.warning("Mail not configured; skipping email to %s", msg.recipients)
         return False
 
     app = current_app._get_current_object()
-    threading.Thread(target=_send_async, args=(app, msg), daemon=True).start()
+    threading.Thread(target=_send_async, args=(app, msg), daemon=False).start()
     return True
 
 
