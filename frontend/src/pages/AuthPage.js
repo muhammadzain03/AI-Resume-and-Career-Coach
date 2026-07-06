@@ -19,7 +19,6 @@ const AuthPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const redirectTo = location.state?.from || "/app";
@@ -27,7 +26,6 @@ const AuthPage = () => {
   const switchMode = (next) => {
     setMode(next);
     setError("");
-    setMessage("");
   };
 
   const handleLogin = async (e) => {
@@ -35,17 +33,9 @@ const AuthPage = () => {
     setError("");
     setSubmitting(true);
     try {
-      const data = await login(email, password);
-      if (!data.user?.email_verified) {
-        navigate("/verify-pending", { replace: true });
-        return;
-      }
+      await login(email, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      if (err.status === 403) {
-        navigate("/verify-pending", { replace: true });
-        return;
-      }
       setError(err.message || "Sign in failed.");
     } finally {
       setSubmitting(false);
@@ -55,15 +45,10 @@ const AuthPage = () => {
   const handleSignup = async (e) => {
     e.preventDefault();
     setError("");
-    setMessage("");
     setSubmitting(true);
     try {
-      const data = await signup(name, email, password);
-      setMessage(
-        data.message ||
-          "Account created. Check your email for a verification link."
-      );
-      navigate("/verify-pending", { replace: true });
+      await signup(name, email, password);
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message || "Sign up failed.");
     } finally {
@@ -183,9 +168,6 @@ const AuthPage = () => {
 
             {error && (
               <p className="status-text status-text--error">{error}</p>
-            )}
-            {message && (
-              <p className="status-text status-text--success">{message}</p>
             )}
 
             <Button

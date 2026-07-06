@@ -89,12 +89,14 @@ _FALLBACK_SUGGESTIONS = [
 ]
 
 _SCORE_WEIGHTS = {
-    "keyword_match": 0.24,
-    "requirements_match": 0.20,
-    "impact_metrics": 0.18,
-    "formatting": 0.13,
-    "spelling_grammar": 0.12,
-    "section_order": 0.13,
+    # "Does the candidate fit the role" matters more than raw keyword overlap,
+    # so requirements_match leads and keyword_match is deliberately not dominant.
+    "requirements_match": 0.30,
+    "keyword_match": 0.22,
+    "impact_metrics": 0.16,
+    "formatting": 0.12,
+    "spelling_grammar": 0.10,
+    "section_order": 0.10,
 }
 
 _VALID_REQ_STATUS = {"met", "missing", "unclear"}
@@ -201,20 +203,124 @@ def _coerce_suggestion(raw: Any) -> dict | None:
     return None
 
 
-def _compute_overall(breakdown: dict, baseline: float) -> float:
-    """Weighted average of sub-scores, blended with deterministic baseline."""
+def _compute_overall(breakdown: dict) -> float:
+    """Weighted average of the six sub-scores.
+
+    keyword_match is already grounded against the curated JD skill set (see
+    _curated_overlap), so we no longer blend in a separate raw-overlap baseline
+    - doing so used to let a naive token count drag good candidates down.
+    """
     total = 0.0
     for key, weight in _SCORE_WEIGHTS.items():
         val = breakdown.get(key)
         if val is None:
-            val = baseline if key == "keyword_match" else 50
+            val = 50.0
         total += float(val) * weight
-    blended = 0.3 * baseline + 0.7 * total
-    return round(max(0, min(100, blended)), 2)
+    return round(max(0, min(100, total)), 2)
+
+
+def _structure_job_description(job_description: str) -> dict | None:
+    """Normalize a raw job posting into a clean, canonical skill set FIRST.
+
+    A long JD is full of filler and nice-to-haves. Scoring keyword overlap
+    against the raw posting unfairly punishes strong candidates (the classic
+    "legacy keyword counter" failure). By having the model distill the posting
+    into required vs. preferred skills up front, we can ground keyword_match on
+    what the role actually demands instead of every noun in the text.
+
+    Returns lowercase skill lists, or None if the call/parse fails.
+    """
+    system = (
+        "You distill a raw job description into a clean, structured summary. "
+        "Return ONE JSON object, no markdown, no prose:\n"
+        "{\n"
+        '  "required_skills": ["canonical skill/tool/concept the role genuinely requires"],\n'
+        '  "preferred_skills": ["nice-to-have skills the JD frames as optional/bonus/plus"]\n'
+        "}\n\n"
+        "RULES:\n"
+        "- Normalize to canonical lowercase names: 'React.js'->'react', 'JS'->'javascript', "
+        "'user centered design'->'ux design', 'RAG'->'retrieval augmented generation'.\n"
+        "- required_skills: only genuine expectations. Merge synonyms, drop generic "
+        "filler ('communication', 'teamwork', 'fast-paced'). Aim for 8-20 items.\n"
+        "- preferred_skills: anything the JD marks as 'nice to have', 'bonus', 'a plus', "
+        "'exposure to', or a specific tool among alternatives (e.g. Figma/Miro/Adobe XD). "
+        "A skill the candidate is only expected to be ABLE TO LEARN is preferred, not required.\n"
+        "- Keep preferred items OUT of required_skills."
+    )
+    user = f"JOB DESCRIPTION:\n{job_description[:_MAX_CHARS]}"
+    try:
+        content = _chat_completion(
+            [{"role": "system", "content": system},
+             {"role": "user", "content": user}]
+        )
+        data = _extract_json_object(content)
+    except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    def _clean(items: Any) -> list[str]:
+        out: list[str] = []
+        for x in items or []:
+            s = str(x).strip().lower()
+            if s and s not in out:
+                out.append(s)
+        return out[:40]
+
+    required = _clean(data.get("required_skills"))
+    preferred = [s for s in _clean(data.get("preferred_skills")) if s not in required]
+    if not required and not preferred:
+        return None
+    return {"required_skills": required, "preferred_skills": preferred}
+
+
+def _skill_present(skill: str, resume_lower: str) -> bool:
+    """Word-boundary match of a (possibly multi-word) skill in the resume text.
+
+    Boundaries avoid false hits like 'react' inside 'reactive', while still
+    letting tech tokens with symbols (c++, ci/cd, .net) match."""
+    s = skill.strip().lower()
+    if not s:
+        return False
+    pattern = r"(?<![a-z0-9])" + re.escape(s) + r"(?![a-z0-9+#])"
+    return re.search(pattern, resume_lower) is not None
+
+
+def _curated_overlap(resume_text: str, structured: dict) -> dict:
+    """Ground keyword coverage on the curated skill set, not raw token soup.
+
+    Required skills drive the score; preferred skills add a small capped bonus
+    so a candidate is never dragged down merely for lacking nice-to-haves.
+    """
+    resume_lower = (resume_text or "").lower()
+    required = structured.get("required_skills") or []
+    preferred = structured.get("preferred_skills") or []
+
+    matched_req = [s for s in required if _skill_present(s, resume_lower)]
+    missing_req = [s for s in required if s not in matched_req]
+    matched_pref = [s for s in preferred if _skill_present(s, resume_lower)]
+
+    if required:
+        base = len(matched_req) / len(required)
+        bonus = 0.10 * (len(matched_pref) / len(preferred)) if preferred else 0.0
+        coverage = round(min(1.0, base + bonus) * 100, 2)
+    else:
+        coverage = None
+
+    matched = matched_req + [s for s in matched_pref if s not in matched_req]
+    return {
+        "coverage": coverage,
+        "matched_skills": matched,
+        "missing_skills": missing_req,
+    }
 
 
 def _coerce_analysis_payload(
-    raw: dict[str, Any], overlap: dict, quantified: int = 0
+    raw: dict[str, Any],
+    det_kw: float,
+    matched_skills: list[str],
+    missing_fallback: list[str],
+    quantified: int = 0,
 ) -> dict | None:
     try:
         raw_breakdown = raw.get("score_breakdown") or {}
@@ -224,15 +330,14 @@ def _coerce_analysis_payload(
             if val is not None:
                 breakdown[key] = max(0, min(100, float(val)))
             elif key == "keyword_match":
-                breakdown[key] = float(overlap["match_score"])
+                breakdown[key] = float(det_kw)
             else:
                 breakdown[key] = 50.0
 
-        # Ground keyword_match in the deterministic overlap so a weak model
+        # Ground keyword_match in the curated skill coverage so a weak model
         # can't drift too far from the real keyword reality.
-        det_kw = float(overlap["match_score"])
         breakdown["keyword_match"] = round(
-            0.5 * breakdown["keyword_match"] + 0.5 * det_kw, 2
+            0.5 * breakdown["keyword_match"] + 0.5 * float(det_kw), 2
         )
 
         # Bound impact_metrics by the real count of quantified bullets - the
@@ -242,8 +347,7 @@ def _coerce_analysis_payload(
         elif quantified >= 4:
             breakdown["impact_metrics"] = max(breakdown["impact_metrics"], 60.0)
 
-        base = det_kw
-        match_score = _compute_overall(breakdown, base)
+        match_score = _compute_overall(breakdown)
 
         missing_skills = filter_skills(raw.get("missing_skills") or [])
 
@@ -272,14 +376,14 @@ def _coerce_analysis_payload(
             return None
 
         if not missing_skills:
-            missing_skills = filter_skills(overlap["missing_skills"])
+            missing_skills = filter_skills(missing_fallback)
 
         hard_requirements = _coerce_hard_requirements(raw.get("hard_requirements"))
 
         return {
             "match_score": match_score,
             "score_breakdown": breakdown,
-            "matched_skills": overlap["matched_skills"],
+            "matched_skills": matched_skills,
             "missing_skills": missing_skills,
             "hard_requirements": hard_requirements,
             "suggestions": suggestions,
@@ -390,6 +494,25 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
     if not Config.LLM_API_KEY or not Config.LLM_API_KEY.strip():
         return _fallback_bundle(overlap)
 
+    # STEP 1 - restructure the JD before scoring anything. This yields a clean
+    # required/preferred skill set so keyword_match reflects the skills the role
+    # actually demands, not raw token overlap against the whole posting.
+    structured = _structure_job_description(job_description)
+    if structured:
+        curated = _curated_overlap(resume_text, structured)
+    else:
+        curated = {"coverage": None, "matched_skills": [], "missing_skills": []}
+
+    if curated["coverage"] is not None:
+        det_kw = curated["coverage"]
+        matched_display = curated["matched_skills"]
+        missing_display = curated["missing_skills"]
+    else:
+        # Structuring unavailable - fall back to the raw deterministic overlap.
+        det_kw = overlap["match_score"]
+        matched_display = overlap["matched_skills"]
+        missing_display = overlap["missing_skills"]
+
     r_short = resume_text[:_MAX_CHARS]
     j_short = job_description[:_MAX_CHARS]
 
@@ -426,8 +549,11 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
         "  ]\n"
         "}\n\n"
         "SCORING RULES:\n"
-        "- keyword_match: % of technical skills/tools/languages from the JD found in the resume. "
-        "Only count real technical terms. Ignore generic English words.\n"
+        "- keyword_match: of the REQUIRED skills the role demands, what share does the resume "
+        "evidence? Judge semantically, not by exact string: 'React, component-based design, Figma, "
+        "Human-Computer Interaction coursework' clearly covers 'user-centered design' and 'UX "
+        "principles'. Do NOT penalize a candidate for not copying the JD's exact phrasing, and do "
+        "NOT count nice-to-have tools they happen to lack against this score.\n"
         "- requirements_match: how well the candidate meets the JD's HARD requirements - "
         "years of experience, required degree/field, certifications/licenses, work authorization or "
         "citizenship, security clearance, location/relocation/on-site, seniority level, domain experience. "
@@ -442,9 +568,13 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
         "HARD REQUIREMENTS RULES:\n"
         "- Extract every genuine must-have from the JD (eligibility, experience, education, certs, "
         "clearance, location, language). List 3-8 of the most important.\n"
-        "- Mark status 'missing' only when the JD clearly requires it AND the resume does not show it. "
-        "Use 'unclear' when the resume neither confirms nor denies it (e.g. citizenship rarely stated). "
-        "Never invent requirements the JD does not state.\n"
+        "- Judge understanding/knowledge requirements HOLISTICALLY: relevant coursework, projects, "
+        "or listed skills count as 'met'. A candidate with HCI coursework, React projects, and Figma "
+        "listed MEETS 'understanding of user-centered design and UX principles' - do not mark it "
+        "'unclear' just because the resume doesn't restate the JD's exact words.\n"
+        "- Mark status 'missing' only when the JD clearly requires it AND the resume shows no evidence. "
+        "Reserve 'unclear' for facts a resume genuinely cannot show (citizenship, clearance, exact "
+        "availability/hours), NOT for skills that can be reasonably inferred. Never invent requirements.\n"
         "- For each 'missing' or 'unclear' hard requirement, also add a matching suggestion with "
         'category "Requirement" and priority "high" telling the user how to address it.\n\n'
         "SUGGESTION RULES:\n"
@@ -461,10 +591,16 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
         '12k req/min, cutting checkout errors 30%\'.", "priority": "high"}\n'
     )
 
+    req_skills = (structured or {}).get("required_skills", [])
+    pref_skills = (structured or {}).get("preferred_skills", [])
     user = (
+        f"STRUCTURED JOB DESCRIPTION (extracted first, use it to score keyword_match):\n"
+        f"- Required skills the role demands: {req_skills}\n"
+        f"- Preferred / nice-to-have skills: {pref_skills}\n\n"
         f"DETERMINISTIC HINTS (ground your scores in these, do not contradict them):\n"
-        f"- Keyword overlap: {overlap['match_score']}%\n"
-        f"- Keywords in the JD missing from the resume: {overlap['missing_skills'][:30]}\n"
+        f"- Required-skill coverage in the resume: {det_kw}%\n"
+        f"- Required skills present in the resume: {matched_display[:30]}\n"
+        f"- Required skills NOT found in the resume: {missing_display[:30]}\n"
         f"- Resume bullets containing a real metric/number: {quantified}\n\n"
         f"RESUME:\n{r_short}\n\nJOB DESCRIPTION:\n{j_short}"
     )
@@ -480,7 +616,9 @@ def analyze_resume_job(resume_text: str, job_description: str) -> dict:
         try:
             content = _chat_completion(messages)
             parsed = _extract_json_object(content)
-            merged = _coerce_analysis_payload(parsed, overlap, quantified)
+            merged = _coerce_analysis_payload(
+                parsed, det_kw, matched_display, missing_display, quantified
+            )
             if merged:
                 return merged
             logger.warning("LLM analysis payload unusable (attempt %d).", attempt + 1)

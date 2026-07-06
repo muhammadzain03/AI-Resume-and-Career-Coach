@@ -5,8 +5,6 @@ import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
-import VerifyEmailPage from "./pages/VerifyEmailPage";
-import VerifyPendingPage from "./pages/VerifyPendingPage";
 import OverviewPage from "./pages/OverviewPage";
 import AnalyzePage from "./pages/AnalyzePage";
 import AnalysisDetailPage from "./pages/AnalysisDetailPage";
@@ -50,8 +48,8 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/verify-pending" element={<VerifyPendingPage />} />
+        <Route path="/verify-email" element={<Navigate to="/login" replace />} />
+        <Route path="/verify-pending" element={<Navigate to="/app" replace />} />
       </Route>
 
       <Route

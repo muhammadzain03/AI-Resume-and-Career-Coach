@@ -25,6 +25,15 @@ class Config:
 
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
+    # Public base URL of this backend, used to build the email-confirmation link.
+    # On Render this is provided automatically as RENDER_EXTERNAL_URL, so no manual
+    # configuration is needed there. Falls back to localhost for local development.
+    BACKEND_URL = (
+        os.getenv("BACKEND_URL")
+        or os.getenv("RENDER_EXTERNAL_URL")
+        or "http://localhost:5000"
+    ).rstrip("/")
+
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"

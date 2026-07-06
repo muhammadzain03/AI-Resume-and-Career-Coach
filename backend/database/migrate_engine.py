@@ -114,6 +114,10 @@ def apply_on_startup():
         conn = get_conn()
         cur = conn.cursor()
         ensure_engine_schema(cur)
+        cur.execute(
+            "UPDATE users SET email_verified=TRUE, verification_token=NULL "
+            "WHERE email_verified=FALSE OR verification_token IS NOT NULL"
+        )
         conn.commit()
         cur.close()
         logger.info("Engine schema verified.")

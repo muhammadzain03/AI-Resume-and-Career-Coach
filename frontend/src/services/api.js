@@ -137,13 +137,6 @@ export async function getMe() {
   return authFetch("/auth/me");
 }
 
-export async function verifyEmail(token) {
-  const response = await doFetch(
-    `${API_BASE}/auth/verify/${encodeURIComponent(token)}`
-  );
-  return parseResponse(response);
-}
-
 export async function uploadResume(file) {
   const formData = new FormData();
   formData.append("resume", file);

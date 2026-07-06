@@ -14,7 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from config import Config
 from database.db import get_conn
-from services.email_service import send_verification_email, send_welcome_email
+from services.email_service import send_welcome_email
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,11 @@ def register():
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-    verification_token = secrets.token_urlsafe(32)
     hashed = generate_password_hash(password)
+    # The account is active immediately (email_verified=True); this token only
+    # backs an optional confirmation link in the welcome email and never gates
+    # access. It is cleared once the user clicks the link.
+    confirm_token = secrets.token_urlsafe(32)
 
     conn, cur = None, None
     try:
@@ -77,7 +80,7 @@ def register():
             VALUES (%s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (email, hashed, name or None, False, verification_token),
+            (email, hashed, name or None, True, confirm_token),
         )
         user_id = cur.fetchone()["id"]
         conn.commit()
@@ -99,11 +102,11 @@ def register():
         if conn is not None:
             conn.close()
 
-    send_verification_email(email, name, verification_token)
+    send_welcome_email(email, name, confirm_token=confirm_token)
 
     return jsonify({
         **_token_response(user_row),
-        "message": "Account created. Please check your email to verify your address.",
+        "message": "Welcome to RCC. Your account is ready.",
     }), 201
 
 
@@ -141,11 +144,6 @@ def login():
         return jsonify({"error": "Invalid credentials"}), 401
     if not check_password_hash(user["password_hash"], password):
         return jsonify({"error": "Invalid credentials"}), 401
-    if not user.get("email_verified") and not user.get("google_id"):
-        return jsonify({
-            "error": "Email not verified. Check your inbox for the verification link.",
-            "email_verified": False,
-        }), 403
 
     return jsonify(_token_response(user))
 
@@ -179,6 +177,7 @@ def google_auth():
         return jsonify({"error": "Google account missing required fields"}), 400
 
     conn, cur = None, None
+    is_new_user = False
     try:
         conn = get_conn()
         cur = conn.cursor(dictionary=True)
@@ -200,6 +199,7 @@ def google_auth():
                     (google_sub, name or None, avatar, user["id"]),
                 )
             else:
+                is_new_user = True
                 cur.execute(
                     """
                     INSERT INTO users
@@ -234,54 +234,55 @@ def google_auth():
         if conn is not None:
             conn.close()
 
-    send_welcome_email(email, name)
+    if is_new_user:
+        send_welcome_email(email, name)
 
     return jsonify(_token_response(user_row))
 
 
-@auth_bp.route("/verify/<token>", methods=["GET"])
-def verify_email(token):
-    if not token:
-        return jsonify({"error": "Invalid verification token"}), 400
+@auth_bp.route("/confirm/<token>", methods=["GET"])
+def confirm_email(token):
+    """Record that a user confirmed their email address.
 
-    conn, cur = None, None
-    try:
-        conn = get_conn()
-        cur = conn.cursor(dictionary=True)
-        cur.execute(
-            "SELECT id, email, name, email_verified, avatar_url FROM users WHERE verification_token=%s",
-            (token,),
-        )
-        user = cur.fetchone()
-        if not user:
-            return jsonify({"error": "Invalid or expired verification link"}), 404
-        if user.get("email_verified"):
-            return jsonify({
-                "message": "Email already verified",
-                "user": _user_payload(user),
-            })
+    This does NOT gate access - accounts are active from sign-up. Clicking the
+    link simply clears the pending confirmation token for record-keeping, then
+    shows a small confirmation page. Unknown/already-used tokens still render a
+    friendly page rather than an error.
+    """
+    if token:
+        conn, cur = None, None
+        try:
+            conn = get_conn()
+            cur = conn.cursor(dictionary=True)
+            cur.execute(
+                "UPDATE users SET verification_token=NULL WHERE verification_token=%s",
+                (token,),
+            )
+            conn.commit()
+        except Exception:
+            logger.exception("Email confirmation failed")
+        finally:
+            if cur is not None:
+                cur.close()
+            if conn is not None:
+                conn.close()
 
-        cur.execute(
-            """
-            UPDATE users SET email_verified=TRUE, verification_token=NULL WHERE id=%s
-            """,
-            (user["id"],),
-        )
-        conn.commit()
-        user["email_verified"] = True
-    except Exception:
-        logger.exception("Email verification failed")
-        return jsonify({"error": "Database error"}), 500
-    finally:
-        if cur is not None:
-            cur.close()
-        if conn is not None:
-            conn.close()
-
-    return jsonify({
-        "message": "Email verified successfully",
-        "user": _user_payload(user),
-    })
+    app_url = f"{Config.FRONTEND_URL}/app"
+    page = (
+        "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<title>Email confirmed - RCC</title></head>"
+        "<body style='font-family:system-ui,-apple-system,Segoe UI,sans-serif;"
+        "max-width:480px;margin:80px auto;padding:0 24px;text-align:center;color:#111'>"
+        "<h1 style='font-size:22px;margin-bottom:8px'>Your email is confirmed</h1>"
+        "<p style='color:#555;line-height:1.5'>Thanks for confirming your address. "
+        "Your RCC account is ready to use.</p>"
+        f"<p style='margin-top:24px'><a href='{app_url}' "
+        "style='display:inline-block;padding:10px 22px;background:#111;color:#fff;"
+        "border-radius:8px;text-decoration:none'>Open RCC</a></p>"
+        "</body></html>"
+    )
+    return page, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 @auth_bp.route("/me", methods=["GET"])

@@ -41,7 +41,7 @@ The system is split into three independently deployable parts:
 - Job-fit scoring. Paste any job description to see a match score, the keywords that are missing, and where to focus first.
 - Interview practice. Rehearse with an AI interviewer that asks role-specific questions and returns feedback in real time. Spoken questions are supported in Chrome and Edge through the browser Web Speech API.
 - Reviewable history. Past analyses and interview sessions are saved to the signed-in account.
-- Authentication. Email and password sign-up with email verification, Google sign-in, and JWT access and refresh tokens.
+- Authentication. Email and password sign-up, Google sign-in, and JWT access and refresh tokens. New accounts are active immediately; a welcome email is sent in the background.
 - Theming. System-aware dark and light modes across the application.
 
 ## Architecture
@@ -190,7 +190,7 @@ The local PostgreSQL container is based on the postgres:18-alpine image, listens
 | JWT_ACCESS_TOKEN_EXPIRES | Access token lifetime in seconds. |
 | JWT_REFRESH_TOKEN_EXPIRES | Refresh token lifetime in seconds. |
 | GOOGLE_CLIENT_ID | Google OAuth web client ID. Must match the frontend value. |
-| FRONTEND_URL | Full URL of the frontend, including the scheme. Used in verification email links. |
+| FRONTEND_URL | Full URL of the frontend, including the scheme. Used in welcome email links. |
 | MAIL_SERVER | SMTP server host. |
 | MAIL_PORT | SMTP server port. |
 | MAIL_USE_TLS | Whether to use TLS. |
@@ -234,10 +234,9 @@ Authentication
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| POST | /api/auth/register | Create an account and send a verification email. |
+| POST | /api/auth/register | Create an account, sign in immediately, and send a welcome email. |
 | POST | /api/auth/login | Sign in with email and password. |
 | POST | /api/auth/google | Sign in with a Google credential. |
-| GET | /api/auth/verify/{token} | Verify an email address. |
 | GET | /api/auth/me | Return the current user. |
 | POST | /api/auth/refresh | Issue a new access token from a refresh token. |
 

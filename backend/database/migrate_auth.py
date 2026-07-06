@@ -71,7 +71,8 @@ def main():
             print("Created idx_users_google_id")
 
         cur.execute(
-            "UPDATE users SET email_verified=TRUE WHERE password_hash IS NOT NULL"
+            "UPDATE users SET email_verified=TRUE, verification_token=NULL "
+            "WHERE email_verified=FALSE OR verification_token IS NOT NULL"
         )
         conn.commit()
         print("Migration complete.")
