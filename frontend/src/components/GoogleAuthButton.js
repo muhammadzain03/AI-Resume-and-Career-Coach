@@ -56,11 +56,7 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled, label = "Continue with
   }, [onError]);
 
   if (!GOOGLE_CLIENT_ID) {
-    return (
-      <button type="button" className="auth-google-btn" disabled>
-        {label} (not configured)
-      </button>
-    );
+    return null;
   }
 
   return (

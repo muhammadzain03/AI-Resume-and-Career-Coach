@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Button from "../components/Button";
 import { startInterview, submitAnswer, endInterview } from "../services/api";
+import { toUserMessage } from "../utils/errors";
 
 const getSpeechRecognition = () =>
   typeof window !== "undefined"
@@ -179,7 +180,7 @@ const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
         console.error("Failed to start interview:", err);
         setMessages([{
           type: "system",
-          text: "Failed to start the interview. Please check that the backend is running.",
+          text: toUserMessage(err),
         }]);
       }
     };
@@ -226,7 +227,7 @@ const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
       console.error(err);
       setMessages((msgs) => [
         ...msgs,
-        { type: "system", text: "Something went wrong. Try submitting again." },
+        { type: "system", text: toUserMessage(err) },
       ]);
     } finally {
       setLoading(false);

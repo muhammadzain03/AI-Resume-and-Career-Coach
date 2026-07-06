@@ -7,21 +7,7 @@ import Spinner from "../components/Spinner";
 import AnalysisResults from "../components/AnalysisResults";
 import { uploadResume, runAnalysis, getAnalysis } from "../services/api";
 import { validateResumeFile } from "../utils/validation";
-
-const PARSE_ERROR_MESSAGE =
-  "That file wouldn't parse. Try a text-based PDF or a DOCX - scanned images won't work.";
-
-function getAnalyzeErrorMessage(err) {
-  const msg = (err?.message || "").toLowerCase();
-  if (
-    msg.includes("parse") ||
-    msg.includes("extract") ||
-    msg.includes("text-based")
-  ) {
-    return PARSE_ERROR_MESSAGE;
-  }
-  return err?.message || "Something went wrong. Please try again.";
-}
+import { toUserMessage } from "../utils/errors";
 
 const AnalyzePage = () => {
   const [file, setFile] = useState(null);
@@ -87,7 +73,9 @@ const AnalyzePage = () => {
     try {
       const uploadResult = await uploadResume(file);
       const newResumeId = uploadResult?.resume_id || uploadResult?.data?.resume_id;
-      if (!newResumeId) throw new Error("Upload failed - no resume ID returned.");
+      if (!newResumeId) {
+        throw new Error("upload_failed");
+      }
       setResumeId(newResumeId);
       localStorage.setItem("resume_id", newResumeId);
 
@@ -98,8 +86,9 @@ const AnalyzePage = () => {
       const analysisResult = await runAnalysis(newResumeId, description.trim());
       const analysisId =
         analysisResult?.analysis_id || analysisResult?.data?.analysis_id;
-      if (!analysisId)
-        throw new Error("Analysis failed - no analysis ID returned.");
+      if (!analysisId) {
+        throw new Error("analysis_failed");
+      }
 
       setProgress("Scoring against the job description...");
       const data = await getAnalysis(analysisId);
@@ -113,7 +102,7 @@ const AnalyzePage = () => {
         });
       }, 200);
     } catch (err) {
-      setError(getAnalyzeErrorMessage(err));
+      setError(toUserMessage(err));
       setProgress("");
     } finally {
       setUploading(false);

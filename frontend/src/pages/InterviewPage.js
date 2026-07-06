@@ -8,6 +8,7 @@ import InterviewChat from "../components/InterviewChat";
 import ScrollReveal from "../components/ScrollReveal";
 import { uploadResume } from "../services/api";
 import { validateResumeFile } from "../utils/validation";
+import { toUserMessage } from "../utils/errors";
 
 const EXPECTATIONS = [
   "Role-specific behavioral and technical questions",
@@ -50,14 +51,11 @@ const InterviewPage = () => {
     try {
       const res = await uploadResume(f);
       const id = res?.resume_id;
-      if (!id) throw new Error("Upload failed.");
+      if (!id) throw new Error("upload_failed");
       setResumeId(id);
       setContextName(f.name);
     } catch (err) {
-      setContextError(
-        err?.message ||
-          "Couldn't read that file. Try a text-based PDF or DOCX."
-      );
+      setContextError(toUserMessage(err));
     } finally {
       setUploadingContext(false);
     }

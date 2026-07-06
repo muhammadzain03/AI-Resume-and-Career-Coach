@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import ScrollReveal from "../components/ScrollReveal";
 import AnalysisResults from "../components/AnalysisResults";
 import { getAnalysis } from "../services/api";
+import { toUserMessage } from "../utils/errors";
 
 const AnalysisDetailPage = () => {
   const { analysisId } = useParams();
@@ -19,7 +20,7 @@ const AnalysisDetailPage = () => {
         const data = await getAnalysis(analysisId);
         if (active) setResults(data);
       } catch (err) {
-        if (active) setError(err?.message || "Could not load this analysis.");
+        if (active) setError(toUserMessage(err));
       } finally {
         if (active) setLoading(false);
       }

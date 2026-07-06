@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import { useAuth } from "../context/AuthContext";
+import { toUserMessage } from "../utils/errors";
 
 const AuthPage = () => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const AuthPage = () => {
       await login(email, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.message || "Sign in failed.");
+      setError(toUserMessage(err) || "Sign in failed.");
     } finally {
       setSubmitting(false);
     }
@@ -50,7 +51,7 @@ const AuthPage = () => {
       await signup(name, email, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.message || "Sign up failed.");
+      setError(toUserMessage(err) || "Sign up failed.");
     } finally {
       setSubmitting(false);
     }
@@ -63,7 +64,7 @@ const AuthPage = () => {
       await googleLogin(credential);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.message || "Google sign-in failed.");
+      setError(toUserMessage(err) || "Google sign-in failed.");
     } finally {
       setSubmitting(false);
     }
@@ -105,7 +106,7 @@ const AuthPage = () => {
 
           <GoogleAuthButton
             onSuccess={handleGoogle}
-            onError={(err) => setError(err.message)}
+            onError={(err) => setError(toUserMessage(err) || "Google sign-in failed.")}
             disabled={submitting}
             label={isLogin ? "Continue with Google" : "Sign up with Google"}
           />

@@ -1,12 +1,10 @@
+import { NETWORK_ERROR_MESSAGE, normalizeApiError } from "../utils/errors";
+
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
 
 const ACCESS_KEY = "rcc_access_token";
 const REFRESH_KEY = "rcc_refresh_token";
 const USER_KEY = "rcc_user";
-
-const NETWORK_ERROR_MESSAGE =
-  "Can't reach the server. Make sure the backend is running on " +
-  `${API_BASE.replace(/\/api$/, "")} and try again.`;
 
 // fetch() rejects with a TypeError on network-level failures (server down,
 // CORS, DNS). Translate that into an actionable message instead of the
@@ -54,7 +52,7 @@ export function clearAuthSession() {
 async function parseResponse(response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err = new Error(data.error || `HTTP ${response.status}`);
+    const err = new Error(normalizeApiError(data, response.status));
     err.status = response.status;
     err.data = data;
     throw err;
