@@ -10,13 +10,16 @@ what the product *does*, not how the homepage looks.
 - `backend/services/interview_engine.py` — interview sessions + LLM/fallback
 - `backend/services/resume_parser.py` — PDF/DOCX/TXT extraction
 - `backend/routes/*` — analysis, interview, resume, auth
-- `backend/database/init/01-schema.sql` — MySQL schema
+- `backend/database/init/01-schema.sql` — PostgreSQL schema
 - `backend/config.py`, `frontend/src/pages/AnalyzePage.js`, `frontend/src/components/InterviewChat.js`
 
-**Stack reality check:** the DB is **MySQL** (`mysql-connector-python`, port 3306, `DB_NAME=arcc`),
-the LLM is **Gemini** via the OpenAI-compatible endpoint (`gemini-2.5-flash`). ➜ **The marketing
-tech-strip from the previous plan said "PostgreSQL" — change it to "MySQL".** Honest stack line:
-`React · Flask · Gemini · MySQL`.
+**Stack reality check:** the DB is **PostgreSQL 18** (`psycopg2`, Neon in production, port 5432),
+the LLM is **Gemini** via the OpenAI-compatible endpoint (`gemini-2.5-flash`). Honest stack line:
+`React · Flask · Gemini · PostgreSQL`.
+
+**Production status (July 2026):** Critical and high items below (C1–C2, H1–H3) and most medium
+items (M1–M3) are implemented in production. M4 option (b) is partially done (mic disabled when
+the browser lacks Web Speech API). L1 drag-and-drop upload is implemented.
 
 ---
 
@@ -40,65 +43,51 @@ Now the fixes, in priority order.
 
 ## C1. Interview sessions live in memory → they vanish
 
-`interview_engine.py` stores every session in a module-level dict:
+**Implemented.** Sessions now persist in PostgreSQL (`interview_sessions` in `01-schema.sql` and
+`interview_engine.py`). The original problem was a module-level dict:
 ```python
 _SESSIONS: dict[str, dict[str, Any]] = {}
 ```
-The file's own docstring admits *"Sessions live in a module-level dict and are lost on server
+The file's own docstring admitted *"Sessions live in a module-level dict and are lost on server
 restart."* In production this fails in two ways:
 - **Restart/redeploy** drops every in-progress interview → users hit `session_not_found`.
 - **More than one worker** (Gunicorn/uvicorn `--workers 2+`, or autoscaling): the session is
   created on worker A, the next answer hits worker B, which has no such session → `session_not_found`
   intermittently and unreproducibly. This is the classic "works on localhost, breaks in prod" bug.
 
-**Fix:** persist sessions in MySQL (you already have a DB) or Redis. Minimal MySQL approach — add a
-table and store the session blob:
+**Fix (applied):** persist sessions in PostgreSQL. Current schema:
 ```sql
 CREATE TABLE IF NOT EXISTS interview_sessions (
     id           VARCHAR(36) PRIMARY KEY,         -- the uuid
     user_id      INT NULL,
     role         VARCHAR(255) NULL,
-    jd           LONGTEXT NULL,
-    state        LONGTEXT NOT NULL,               -- JSON: history, llm_messages, current_index, use_llm
+    jd           TEXT NULL,
+    state        TEXT NOT NULL,                   -- JSON: history, llm_messages, current_index, use_llm
+    summary      TEXT NULL,
+    score        INT NULL,
     complete     BOOLEAN NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_interview_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 ```
-Then in `create_session` write the row; in `get_next`/`get_session`/`end_session` load `state`
-from the row (JSON-decode), mutate, save back. Keep the in-memory dict only as an optional
-fast-path cache. *Tell Cursor:* "Replace the `_SESSIONS` dict with read/write to the
-`interview_sessions` table via `database.db.get_conn`, serializing the session dict to the `state`
-JSON column. Preserve the existing function signatures."
+`create_session` writes the row; `get_next`/`get_session`/`end_session` load `state` from the row
+(JSON-decode), mutate, and save back.
 
 ## C2. Resume parsing is the garbage-in risk for the whole product
 
-`resume_parser.py` uses `pypdf` and returns the structured fields empty (`"skills": []`). Two real
+**Implemented.** `resume_parser.py` prefers layout-aware `pdfplumber` and falls back to `pypdf`.
+Structured fields such as `"skills"` may still be empty; scoring uses full extracted text. Two real
 failure modes that silently wreck every downstream score:
 - **Multi-column resumes** (very common): `pypdf` extracts text in the wrong reading order, so the
   resume text fed to the scorer is scrambled → wrong keyword overlap, wrong LLM analysis.
 - **Scanned / image-only PDFs**: `extract_text()` returns `""` → the user gets a confident-looking
   score computed on nothing.
 
-**Fix (two parts):**
-1. **Better extractor.** Add `pdfplumber` (layout-aware) and prefer it; fall back to `pypdf`.
-   Confirm the one dependency add with Cursor.
-2. **Quality guard — never score empty/garbage text.** After extraction, check it looks like a
-   resume before proceeding:
-```python
-def looks_extractable(text: str) -> bool:
-    t = (text or "").strip()
-    if len(t) < 200:                 # almost no text → likely scanned/empty
-        return False
-    words = t.split()
-    # ratio of alphabetic words; scrambled/garbled extracts skew low
-    alpha = sum(1 for w in words if any(c.isalpha() for c in w))
-    return len(words) >= 50 and (alpha / max(len(words), 1)) > 0.6
-```
-   If it fails, return a clear error to the frontend instead of a score:
-   `{"error": "low_text_extraction", "message": "We couldn't read enough text from this file. If it's a scanned PDF, upload a text-based PDF or DOCX."}`
-   `AnalyzePage` should surface that as the parse-fail empty state (copy already in the homepage plan).
+**Fix (applied):**
+1. **Better extractor.** `pdfplumber` (layout-aware) is preferred; `pypdf` is the fallback.
+2. **Quality guard — never score empty/garbage text.** `looks_extractable()` in `resume_parser.py`
+   runs after extraction; `resume_routes.py` returns `low_text_extraction` when it fails.
 
 ---
 
@@ -106,7 +95,9 @@ def looks_extractable(text: str) -> bool:
 
 ## H1. Turn on JSON mode for both LLM calls
 
-Both `_chat_completion` functions rely on prompting for JSON + stripping ``` fences. When the model
+**Implemented.** Both `llm_client.py` and `interview_engine.py` set
+`response_format: {"type": "json_object"}` on LLM requests, with fence-stripping and a retry on
+parse failure before falling back. Originally both `_chat_completion` functions relied on prompting for JSON + stripping ``` fences. When the model
 adds prose or breaks the JSON, analysis silently drops to the **generic** `_FALLBACK_SUGGESTIONS`
 (the user gets boilerplate, not real analysis) and the interview returns a canned line. Gemini's
 OpenAI-compatible endpoint supports structured output — request it:
@@ -124,7 +115,9 @@ shows up instead of fallback. (Keep the fence-stripping as a belt-and-suspenders
 
 ## H2. Persist interview results so they can be reviewed
 
-Analyses are saved to `analysis_results`, but **interviews are saved nowhere** — yet the product
+**Implemented.** Completed interviews write `summary` (and `score` when present) to
+`interview_sessions`. `GET /interview/history` and `GET /interview/<session_id>` expose past
+sessions for review from the dashboard History page. Originally analyses were saved to `analysis_results`, but **interviews were saved nowhere** — yet the product
 sells "AI interview feedback" and has a History page. On completion (`is_complete` in
 `_get_next_llm` / `_get_next_static`, and `end_session`), write the final transcript + summary to
 the `interview_sessions` row (or a dedicated `interview_feedback` table). Then add a History entry
@@ -132,7 +125,8 @@ and a read view so users can revisit feedback. This closes the loop the marketin
 
 ## H3. LLM-mode interview history is missing the questions
 
-In `_get_next_llm`, each history entry stores only `answer` + `feedback`:
+**Implemented.** LLM-mode history entries now include `question`, `answer`, and `feedback`, matching
+the static path. Originally in `_get_next_llm`, each history entry stored only `answer` + `feedback`:
 ```python
 session["history"].append({"answer": answer, "feedback": feedback})
 ```
@@ -146,16 +140,24 @@ the two code paths' history shape identical so `get_session` and any review UI a
 # MEDIUM — robustness, cost, and accuracy
 
 ## M1. Cache identical analyses
+
+**Implemented.** `analysis_routes.py` hashes `(resume_text, job_description)` into
+`analysis_results.input_hash` and returns a cached payload on hit.
 Re-running the same resume+JD calls Gemini again (slow + costs tokens). Hash
 `(resume_text, job_description, LLM_MODEL)` and cache the result (in `analysis_results`, keyed by a
 new `input_hash` column, or a small `analysis_cache` table). Return the cached payload on a hit.
 
 ## M2. Rate-limit the public endpoints
+
+**Implemented.** `flask-limiter` in `extensions.py` limits `/analysis/run` (20/hour) and
+`/interview/start` / `/interview/answer` (20 and 120/hour respectively) per IP.
 A deployed free tool with no limits invites abuse and a surprise Gemini bill. Add `flask-limiter`
 with per-user (JWT identity) and per-IP limits on `/analysis/run`, `/interview/start`,
 `/interview/answer`. Start generous (e.g. 20 analyses/hour/user) and tune.
 
 ## M3. Normalize skill variants & multi-word terms in the baseline
+
+**Implemented.** `analysis_service.py` defines `_ALIASES` and `_BIGRAMS` for canonical skill overlap.
 `analyze_resume_against_job` matches single tokens exactly, so:
 - `postgres` vs `postgresql`, `js` vs `javascript`, `node` vs `nodejs` count as different.
 - Two-word skills like `machine learning`, `react native`, `power bi` never match as phrases.
@@ -174,6 +176,9 @@ This makes the baseline score (and the "matched/missing skills" lists) noticeabl
 which also gives the LLM a better hint.
 
 ## M4. Decide what to do about server-side STT
+
+**Partially implemented (option b).** `InterviewChat.js` feature-detects Web Speech API support and
+disables the mic elsewhere; voice remains Chrome/Edge only. Server-side STT stub unchanged.
 `integrations/stt_client.py` is a stub and `/interview/transcribe` returns empty text, while
 `InterviewChat` actually uses the **browser** Web Speech API (`SpeechRecognition`) — which only
 works in Chrome/Edge. So Safari/Firefox users get a mic button that does nothing useful. Pick one:
@@ -187,10 +192,11 @@ works in Chrome/Edge. So Safari/Firefox users get a mic button that does nothing
 
 # LOW — polish
 
-- **L1. Drag-and-drop upload.** `AnalyzePage` is click-to-upload only; add a dropzone with the
+- **L1. Drag-and-drop upload.** **Implemented** in `AnalyzePage.js` (dropzone with type and 4 MB validation).
+  `AnalyzePage` is click-to-upload only; add a dropzone with the
   empty-state copy from the homepage plan. Validate type + the 4 MB limit with a clear message.
-- **L2. Store `score_breakdown` in its own column** (or a MySQL `JSON` column) instead of packing
-  it inside the `suggestions` LONGTEXT — cleaner for future analytics/sorting. Low priority; current
+- **L2. Store `score_breakdown` in its own column** (or a PostgreSQL `JSONB` column) instead of packing
+  it inside the `suggestions` TEXT — cleaner for future analytics/sorting. Low priority; current
   pack/unpack works.
 - **L3. Smarter job-title detection.** `extract_job_title` takes the first non-empty line; let the
   LLM return a `role_title` field in the analysis JSON and prefer it when present.
@@ -223,6 +229,5 @@ parse-quality guard around them. Keep all existing function signatures and the r
 
 ## Honesty note for the marketing side
 Two homepage claims should match what the engine actually does:
-- Change the tech strip **PostgreSQL → MySQL** (or `React · Flask · Gemini · MySQL`).
-- The "Real-time AI interview feedback" stat is fair (the chat is interactive), but only add a
-  "review past interviews" claim once H2 is done — until then there's nothing to review.
+- The tech strip **PostgreSQL** is accurate (`React · Flask · Gemini · PostgreSQL`).
+- "Review past interviews" is fair: completed sessions are persisted and available from History.

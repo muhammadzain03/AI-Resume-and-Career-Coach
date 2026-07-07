@@ -21,6 +21,11 @@ Planning docs (do not replace this file):
                       ┌----▼----┐
                       │  Gemini LLM    │
                       │  (OpenAI-compat)│
+                      └----┬----┘
+                              │
+                      ┌----▼----┐
+                      │  Resend API    │
+                      │  (welcome email)│
                       └--------┘
 ```
 
@@ -28,15 +33,15 @@ Planning docs (do not replace this file):
 
 | Layer | Path | Responsibility |
 |-------|------|----------------|
-| App | `app.py` | Flask factory, JWT, CORS, mail |
-| Routes | `routes/auth_routes.py` | Register, login, Google OAuth, email verify, JWT refresh |
+| App | `app.py` | Flask factory, JWT, CORS, rate limiting |
+| Routes | `routes/auth_routes.py` | Register, login, Google OAuth, optional email confirm, JWT refresh |
 | | `routes/resume_routes.py` | Upload and fetch resumes (JWT required) |
 | | `routes/analysis_routes.py` | Run analysis, results, per-user history |
 | | `routes/interview_routes.py` | Mock interview sessions |
 | Services | `services/analysis_service.py` | Token overlap + LLM analysis |
 | | `services/interview_engine.py` | DB-persisted interview sessions |
 | | `services/resume_parser.py` | PDF / DOCX / TXT extraction (pdfplumber + pypdf) |
-| | `services/email_service.py` | Verification and welcome email |
+| | `services/email_service.py` | Welcome email via Resend (production) or SMTP (local dev) |
 | Integrations | `integrations/llm_client.py` | Gemini via OpenAI-compatible API |
 | Data | `database/db.py` | PostgreSQL connection helper (psycopg2) |
 | | `database/init/01-schema.sql` | Canonical DB schema (Docker init) |
@@ -51,6 +56,7 @@ Planning docs (do not replace this file):
 | Routing | `App.js` | Public routes + protected `/app/*` dashboard |
 | Auth | `context/AuthContext.js` | Session, login, signup, Google, logout |
 | API | `services/api.js` | JWT-aware API client |
+| | `utils/errors.js` | Maps API and network errors to user-friendly messages |
 | Layouts | `components/PublicLayout.js` | Site nav, theme toggle, footer (landing, auth) |
 | | `components/DashboardLayout.js` | Sidebar + dashboard shell |
 | Pages | `pages/HomePage.js` | Landing (hero, features, product preview) |
@@ -66,7 +72,7 @@ Planning docs (do not replace this file):
 |-----|------|
 | `/` | Home |
 | `/login`, `/signup` | Auth (`AuthPage`) |
-| `/verify-email`, `/verify-pending` | Email verification |
+| `/verify-email`, `/verify-pending` | Legacy redirects (`/login` and `/app`) |
 | `/app` | Dashboard overview |
 | `/app/analyze` | Resume analysis workflow |
 | `/app/interview` | Interview practice |
@@ -76,21 +82,23 @@ Legacy paths (`/upload`, `/job`, `/dashboard`, `/interview`) redirect to the rou
 
 ### Data flow
 
-1. **Sign up / login** - JWT stored client-side - `Authorization: Bearer` on API calls
+1. **Sign up / login** - JWT stored client-side - `Authorization: Bearer` on API calls. Registration signs the user in immediately and sends a welcome email; there is no email-verification gate before dashboard access.
 2. **Analyze** - `POST /api/resume/upload` - `POST /api/analysis/run` - `GET /api/analysis/:id` - results on `AnalyzePage`
-3. **Interview** - `POST /api/interview/start` - answer loop - summary
+3. **Interview** - `POST /api/interview/start` - answer loop - summary persisted for history review
 
 ### Deployment
 
+- **Production**: Frontend on Vercel (`https://resumecoach.app`), backend on Render (`https://rcc-backend-671k.onrender.com`), PostgreSQL 18 on Neon, welcome email via Resend over HTTPS (Render blocks outbound SMTP on the free tier)
+- **Keep-warm**: `.github/workflows/keep-warm.yml` pings `/api/auth/health` every 10 minutes when `BACKEND_URL` is set as a repository variable
 - **Docker Compose**: `database` (PostgreSQL 18 on host port 5432), `backend`, `frontend`
 - **Local**: `start-arcc.bat` or `docker compose up database -d` + Flask + React (batch files are local-only, gitignored)
-- **Env**: `backend/.env`, `frontend/.env.local` (local only, gitignored)
+- **Env**: `backend/.env`, `frontend/.env.local` (local only, gitignored). Production backend uses `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO`, and `FRONTEND_URL` instead of Gmail `MAIL_*` variables.
 
 ---
 
 ## API contract
 
-Base URL: `http://localhost:5000/api`
+Base URL: `http://localhost:5000/api` (local) or `https://rcc-backend-671k.onrender.com/api` (production)
 
 Protected routes require header: `Authorization: Bearer <access_token>`
 
@@ -104,14 +112,14 @@ Protected routes require header: `Authorization: Bearer <access_token>`
 #### `POST /auth/login`
 **Request:** `{ "email": string, "password": string }`  
 **200:** `{ "user", "access_token", "refresh_token" }`  
-**401:** invalid credentials | **403:** email not verified
+**401:** invalid credentials
 
 #### `POST /auth/google`
 **Request:** `{ "credential": string }` (Google ID token from frontend)  
 **200:** `{ "user", "access_token", "refresh_token" }`
 
-#### `GET /auth/verify/:token`
-**200:** `{ "message", "user" }` - marks email verified
+#### `GET /auth/confirm/:token`
+**200:** HTML confirmation page - clears the optional confirm token from the welcome email (does not gate dashboard access)
 
 #### `GET /auth/me` (JWT)
 **200:** `{ "user": { id, email, name, email_verified, avatar_url } }`
@@ -123,7 +131,8 @@ Protected routes require header: `Authorization: Bearer <access_token>`
 
 #### `POST /resume/upload`
 **Request:** multipart `resume` (PDF/DOCX, max 4 MB)  
-**201:** `{ "resume_id", "filename", "preview", "message" }`
+**201:** `{ "resume_id", "filename", "preview", "message" }`  
+**422:** `{ "error": "low_text_extraction", "message": "..." }` when the file has too little readable text
 
 #### `GET /resume/<resume_id>`
 **200:** `{ "resume_id", "user_id", "filename", "preview", "created_at" }`
@@ -188,6 +197,7 @@ Tables are created from `init/01-schema.sql` via `docker-entrypoint-initdb.d`.
 ```bash
 cd backend
 python database/migrate_auth.py
+python database/migrate_engine.py
 ```
 
 ### Schema changes

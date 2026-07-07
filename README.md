@@ -57,9 +57,9 @@ Vercel (React single-page application, static build)
    v
 Render (Flask REST API, served by gunicorn)
    |                         |
-   |  SQL over SSL           |  HTTPS
+   |  SQL over SSL           |  HTTPS (analysis, interviews, email)
    v                         v
-Neon (PostgreSQL)     Google Gemini API (OpenAI-compatible endpoint)
+Neon (PostgreSQL)     Google Gemini API + Resend (welcome email)
 ```
 
 Request flow:
@@ -68,6 +68,7 @@ Request flow:
 2. The React application calls the Flask API using the base URL in the REACT_APP_API_BASE build variable.
 3. The API validates the JWT, runs the requested operation, and reads or writes data in Neon over an SSL connection.
 4. For analysis and interview features, the API calls the Google Gemini endpoint and falls back to deterministic logic when no model key is configured.
+5. On registration, the API sends a welcome email through Resend over HTTPS (Render blocks outbound SMTP on the free tier).
 
 ## Technology Stack
 
@@ -79,6 +80,7 @@ Request flow:
 | AI | Google Gemini through an OpenAI-compatible API |
 | Document parsing | pdfplumber, pypdf, python-docx |
 | Production server | gunicorn |
+| Email (production) | Resend API over HTTPS |
 | Containerization | Docker and Docker Compose for local development |
 
 ## Repository Structure
@@ -93,11 +95,12 @@ AI-Resume-and-Career-Coach/
       components/               Layout, UI, and interview components
       context/                  Authentication context
       services/                 API client (api.js)
-      utils/                    Client-side helpers and validation
+      utils/                    Client-side helpers, validation, and error mapping
       styles/                   Global styles (main.css)
     public/                     Static assets and index.html
     vercel.json                 Single-page-application routing for Vercel
     Dockerfile                  Local development image
+  .github/workflows/            Keep-warm ping for Render free tier
   backend/                      Flask REST API
     routes/                     auth, resume, analysis, and interview endpoints
     services/                   Business logic and email delivery
@@ -240,6 +243,7 @@ Authentication
 | POST | /api/auth/register | Create an account, sign in immediately, and send a welcome email. |
 | POST | /api/auth/login | Sign in with email and password. |
 | POST | /api/auth/google | Sign in with a Google credential. |
+| GET | /api/auth/confirm/{token} | Optional email confirmation link from the welcome email (does not gate access). |
 | GET | /api/auth/me | Return the current user. |
 | POST | /api/auth/refresh | Issue a new access token from a refresh token. |
 
@@ -292,9 +296,10 @@ Neon on the free plan does not expire and suspends the compute when idle, resumi
 1. The repository includes render.yaml, a Render blueprint that defines the backend web service.
 2. In Render, create a new Blueprint deployment from the repository. Render reads render.yaml, installs dependencies, and starts the service with gunicorn.
 3. Provide the database connection values and the remaining secrets when prompted. The JWT secret is generated automatically, and DB_SSLMODE is set to require by the blueprint.
-4. After the first deploy, copy the assigned service URL for use in the frontend configuration.
+4. Set RESEND_API_KEY, RESEND_FROM (for example `Resume Coach <support@resumecoach.app>`), FRONTEND_URL (`https://resumecoach.app`), and RESEND_REPLY_TO (for example `arcc.resume@gmail.com`). Render's free tier blocks outbound SMTP, so Gmail MAIL_* variables are not used in production.
+5. After the first deploy, copy the assigned service URL for use in the frontend configuration.
 
-The Render free plan spins the service down after a period of inactivity, so the first request after an idle period can take up to about one minute while the service starts.
+The Render free plan spins the service down after a period of inactivity, so the first request after an idle period can take up to about one minute while the service starts. A GitHub Actions workflow (`.github/workflows/keep-warm.yml`) pings `/api/auth/health` every 10 minutes when `BACKEND_URL` is set as a repository variable.
 
 ### Frontend on Vercel
 
@@ -305,8 +310,9 @@ The Render free plan spins the service down after a period of inactivity, so the
 
 ### Connecting the services
 
-1. Set the backend FRONTEND_URL to the full public frontend URL, including https, so that email links resolve correctly.
-2. In the Google Cloud console, add the public frontend URL to the authorized JavaScript origins for the OAuth client so that Google sign-in works in production.
+1. Set the backend FRONTEND_URL to the full public frontend URL, including https, so that welcome email links resolve correctly.
+2. Verify the sending domain in Resend (resumecoach.app) and set RESEND_FROM to an address on that domain.
+3. In the Google Cloud console, add the public frontend URL to the authorized JavaScript origins for the OAuth client so that Google sign-in works in production.
 
 ## Testing
 
