@@ -17,3 +17,6 @@ Thumbs.db
 
 # Local batch scripts (do not commit)
 *.bat
+
+# Claude Code local config
+.claude/

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
   clearAuthSession,
+  deleteAccount as apiDeleteAccount,
   getMe,
   getStoredUser,
   googleAuth as apiGoogleAuth,
@@ -67,6 +68,12 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const deleteAccount = async () => {
+    const data = await apiDeleteAccount();
+    setUser(null);
+    return data;
+  };
+
   const value = {
     user,
     loading,
@@ -75,6 +82,7 @@ export function AuthProvider({ children }) {
     signup,
     googleLogin,
     logout,
+    deleteAccount,
     refreshUser: bootstrap,
   };
 

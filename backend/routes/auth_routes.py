@@ -285,6 +285,53 @@ def confirm_email(token):
     return page, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+@auth_bp.route("/account", methods=["DELETE"])
+@jwt_required()
+def delete_account():
+    """Permanently delete the authenticated user's account and all their data.
+
+    The user FKs are ON DELETE SET NULL, which would orphan rows instead of
+    removing them - so every table is wiped explicitly, in one transaction.
+    analysis_results cascades from resumes/job_descriptions.
+    """
+    user_id = get_jwt_identity()
+
+    conn, cur = None, None
+    try:
+        conn = get_conn()
+        cur = conn.cursor(dictionary=True)
+
+        cur.execute("SELECT id, email FROM users WHERE id=%s", (user_id,))
+        user = cur.fetchone()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        cur.execute(
+            "DELETE FROM interview_sessions WHERE user_id=%s", (user_id,)
+        )
+        cur.execute("DELETE FROM resumes WHERE user_id=%s", (user_id,))
+        cur.execute("DELETE FROM job_descriptions WHERE user_id=%s", (user_id,))
+        cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
+        conn.commit()
+
+        logger.info("Account deleted for user id=%s (%s)", user_id, user["email"])
+    except Exception:
+        logger.exception("Account deletion failed for user id=%s", user_id)
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return jsonify({"error": "Database error"}), 500
+    finally:
+        if cur is not None:
+            cur.close()
+        if conn is not None:
+            conn.close()
+
+    return jsonify({"message": "Your account and all associated data have been deleted."})
+
+
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def me():

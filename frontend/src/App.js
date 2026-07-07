@@ -10,6 +10,7 @@ import AnalyzePage from "./pages/AnalyzePage";
 import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import InterviewPage from "./pages/InterviewPage";
 import HistoryPage from "./pages/HistoryPage";
+import SettingsPage from "./pages/SettingsPage";
 import "./styles/main.css";
 
 const THEME_STORAGE_KEY = "rcc-theme";
@@ -65,6 +66,7 @@ function App() {
         <Route path="interview" element={<InterviewPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="history/:analysisId" element={<AnalysisDetailPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );
