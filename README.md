@@ -192,7 +192,8 @@ The local PostgreSQL container is based on the postgres:18-alpine image, listens
 | GOOGLE_CLIENT_ID | Google OAuth web client ID. Must match the frontend value. |
 | FRONTEND_URL | Full URL of the frontend, including the scheme. Used in welcome email links. |
 | RESEND_API_KEY | Resend API key (required on Render - SMTP is blocked on the free tier). |
-| RESEND_FROM | Sender address, e.g. `RCC <hello@resumecoach.app>` after domain verification in Resend. |
+| RESEND_FROM | Sender address, e.g. `Resume Coach <support@resumecoach.app>` after domain verification in Resend. |
+| RESEND_REPLY_TO | Optional reply-to address, e.g. `arcc.resume@gmail.com`, so user replies reach your inbox. |
 | MAIL_SERVER | SMTP server host (local Docker dev only). |
 | MAIL_PORT | SMTP server port (local Docker dev only). |
 | MAIL_USE_TLS | Whether to use TLS (local Docker dev only). |

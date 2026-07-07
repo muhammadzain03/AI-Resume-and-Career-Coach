@@ -38,19 +38,23 @@ def _send_smtp(app, msg):
 
 
 def _send_resend(to_email, subject, body, html):
+    payload = {
+        "from": Config.RESEND_FROM,
+        "to": [to_email],
+        "subject": subject,
+        "html": html,
+        "text": body,
+    }
+    if Config.RESEND_REPLY_TO:
+        payload["reply_to"] = Config.RESEND_REPLY_TO
+
     response = requests.post(
         RESEND_API_URL,
         headers={
             "Authorization": f"Bearer {Config.RESEND_API_KEY}",
             "Content-Type": "application/json",
         },
-        json={
-            "from": Config.RESEND_FROM,
-            "to": [to_email],
-            "subject": subject,
-            "html": html,
-            "text": body,
-        },
+        json=payload,
         timeout=30,
     )
     if not response.ok:
@@ -148,6 +152,8 @@ def send_welcome_email(to_email, name, confirm_token=None):
         }
     else:
         msg = Message(subject=subject, recipients=[to_email], body=body, html=html)
+        if Config.RESEND_REPLY_TO:
+            msg.reply_to = Config.RESEND_REPLY_TO
         payload = {"provider": "smtp", "to_email": to_email, "msg": msg}
 
     return _dispatch(payload)

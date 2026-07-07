@@ -49,6 +49,8 @@ class Config:
         "RESEND_FROM",
         'RCC <onboarding@resend.dev>',
     )
+    # Where user replies land (Resend is outbound-only; no inbox on support@...).
+    RESEND_REPLY_TO = os.getenv("RESEND_REPLY_TO", "").strip()
 
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
     LLM_BASE_URL = os.getenv(
