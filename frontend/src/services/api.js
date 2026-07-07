@@ -135,6 +135,24 @@ export async function getMe() {
   return authFetch("/auth/me");
 }
 
+export async function verifyEmailCode(email, code) {
+  const data = await authFetch("/auth/verify-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  setAuthSession(data);
+  return data;
+}
+
+export async function resendVerificationCode(email) {
+  return authFetch("/auth/resend-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function deleteAccount() {
   const data = await authFetch("/auth/account", { method: "DELETE" });
   clearAuthSession();

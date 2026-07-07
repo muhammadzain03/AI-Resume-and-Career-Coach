@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
     google_id VARCHAR(255) UNIQUE,
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     verification_token VARCHAR(255),
+    verification_expires_at TIMESTAMP,
+    last_login_at TIMESTAMP,
     avatar_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

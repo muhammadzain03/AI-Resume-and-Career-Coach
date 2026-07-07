@@ -12,6 +12,8 @@ COLUMNS = [
     ("google_id", "VARCHAR(255)"),
     ("email_verified", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("verification_token", "VARCHAR(255)"),
+    ("verification_expires_at", "TIMESTAMP"),
+    ("last_login_at", "TIMESTAMP"),
     ("avatar_url", "TEXT"),
 ]
 
@@ -70,10 +72,6 @@ def main():
             )
             print("Created idx_users_google_id")
 
-        cur.execute(
-            "UPDATE users SET email_verified=TRUE, verification_token=NULL "
-            "WHERE email_verified=FALSE OR verification_token IS NOT NULL"
-        )
         conn.commit()
         print("Migration complete.")
     finally:

@@ -103,6 +103,19 @@ def ensure_engine_schema(cur, verbose=False):
         cur.execute("ALTER TABLE interview_sessions ADD COLUMN score INT")
         log("Added interview_sessions.score")
 
+    # Email-code verification: expiry for the code stored in verification_token,
+    # and last_login_at so the dashboard can greet a first login ("Welcome")
+    # differently from a returning one ("Welcome back").
+    if _table_exists(cur, "users"):
+        if not _column_exists(cur, "users", "verification_expires_at"):
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN verification_expires_at TIMESTAMP"
+            )
+            log("Added users.verification_expires_at")
+        if not _column_exists(cur, "users", "last_login_at"):
+            cur.execute("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP")
+            log("Added users.last_login_at")
+
 
 def apply_on_startup():
     """Best-effort schema ensure called from create_app. Never raises - if the
@@ -114,10 +127,6 @@ def apply_on_startup():
         conn = get_conn()
         cur = conn.cursor()
         ensure_engine_schema(cur)
-        cur.execute(
-            "UPDATE users SET email_verified=TRUE, verification_token=NULL "
-            "WHERE email_verified=FALSE OR verification_token IS NOT NULL"
-        )
         conn.commit()
         cur.close()
         logger.info("Engine schema verified.")

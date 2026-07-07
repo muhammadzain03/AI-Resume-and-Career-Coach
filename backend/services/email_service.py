@@ -63,7 +63,7 @@ def _send_resend(to_email, subject, body, html):
 
 
 def _send_async(app, payload):
-    """Deliver one welcome email. Resend uses HTTPS (works on Render free tier)."""
+    """Deliver one email. Resend uses HTTPS (works on Render free tier)."""
     try:
         if payload["provider"] == "resend":
             _send_resend(
@@ -74,7 +74,9 @@ def _send_async(app, payload):
             )
         else:
             _send_smtp(app, payload["msg"])
-        logger.info("Welcome email sent to %s", payload["to_email"])
+        logger.info(
+            "Email '%s' sent to %s", payload.get("subject", "?"), payload["to_email"]
+        )
     except Exception:
         logger.exception("Failed to send email to %s", payload["to_email"])
 
@@ -94,30 +96,50 @@ def _dispatch(payload):
     return True
 
 
-def send_welcome_email(to_email, name, confirm_token=None):
-    """Send the welcome email in the background.
+def _build_payload(to_email, subject, body, html):
+    if Config.resend_configured():
+        return {
+            "provider": "resend",
+            "to_email": to_email,
+            "subject": subject,
+            "body": body,
+            "html": html,
+        }
+    msg = Message(subject=subject, recipients=[to_email], body=body, html=html)
+    if Config.RESEND_REPLY_TO:
+        msg.reply_to = Config.RESEND_REPLY_TO
+    return {"provider": "smtp", "to_email": to_email, "subject": subject, "msg": msg}
 
-    If ``confirm_token`` is given, the email also carries a confirmation link.
-    Confirmation is purely for record-keeping - the account is already active,
-    so the link never gates access to the dashboard. Google sign-ups pass no
-    token because Google has already verified the address.
-    """
+
+def send_verification_code_email(to_email, name, code):
+    """Email the 6-digit verification code that gates account activation."""
+    display_name = name or to_email.split("@")[0]
+    subject = f"{code} is your RCC verification code"
+    body = (
+        f"Hi {display_name},\n\n"
+        f"Your RCC verification code is:\n\n"
+        f"    {code}\n\n"
+        f"Enter it on the sign-in page to verify your email. "
+        f"The code expires in 15 minutes.\n\n"
+        f"If you didn't request this, you can safely ignore this email.\n"
+    )
+    html = (
+        f"<p>Hi {display_name},</p>"
+        f"<p>Your RCC verification code is:</p>"
+        f'<p style="font-size:32px;font-weight:800;letter-spacing:8px;'
+        f'font-family:monospace;margin:16px 0">{code}</p>'
+        f"<p>Enter it on the sign-in page to verify your email. "
+        f"The code expires in 15 minutes.</p>"
+        f'<p style="color:#555">If you didn\'t request this, you can safely '
+        f"ignore this email.</p>"
+    )
+    return _dispatch(_build_payload(to_email, subject, body, html))
+
+
+def send_welcome_email(to_email, name):
+    """Send the welcome email (in the background) once the account is verified."""
     display_name = name or to_email.split("@")[0]
     dashboard_url = f"{Config.FRONTEND_URL}/app"
-
-    confirm_text = ""
-    confirm_html = ""
-    if confirm_token:
-        confirm_url = f"{Config.BACKEND_URL}/api/auth/confirm/{confirm_token}"
-        confirm_text = (
-            f"\nTo confirm this email address, open this link:\n{confirm_url}\n"
-            f"(Optional - your account already works either way.)\n"
-        )
-        confirm_html = (
-            f'<p style="color:#555">To confirm this email address, '
-            f'<a href="{confirm_url}">click here</a>. '
-            f"This is optional - your account already works either way.</p>"
-        )
 
     subject = "Welcome to RCC"
     body = (
@@ -126,8 +148,7 @@ def send_welcome_email(to_email, name, confirm_token=None):
         f"Your account is ready. You can upload your resume, score it against any "
         f"job description, see the skills you are missing, and rehearse with an AI "
         f"interviewer.\n\n"
-        f"Open your dashboard: {dashboard_url}\n"
-        f"{confirm_text}\n"
+        f"Open your dashboard: {dashboard_url}\n\n"
         f"Best of luck with your job search,\n"
         f"The RCC Team\n"
     )
@@ -138,22 +159,7 @@ def send_welcome_email(to_email, name, confirm_token=None):
         f"job description, see the skills you are missing, and rehearse with an AI "
         f"interviewer.</p>"
         f'<p><a href="{dashboard_url}">Open your dashboard</a></p>'
-        f"{confirm_html}"
         f"<p>Best of luck with your job search,<br/>The RCC Team</p>"
     )
 
-    if Config.resend_configured():
-        payload = {
-            "provider": "resend",
-            "to_email": to_email,
-            "subject": subject,
-            "body": body,
-            "html": html,
-        }
-    else:
-        msg = Message(subject=subject, recipients=[to_email], body=body, html=html)
-        if Config.RESEND_REPLY_TO:
-            msg.reply_to = Config.RESEND_REPLY_TO
-        payload = {"provider": "smtp", "to_email": to_email, "msg": msg}
-
-    return _dispatch(payload)
+    return _dispatch(_build_payload(to_email, subject, body, html))

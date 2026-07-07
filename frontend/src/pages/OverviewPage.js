@@ -119,7 +119,8 @@ const OverviewPage = () => {
         <div className="dash-greeting">
           <p className="eyebrow">Dashboard</p>
           <h1 className="dash-greeting__title">
-            Welcome back, <span className="dash-greeting__name">{firstName}</span>
+            {user?.first_login ? "Welcome" : "Welcome back"},{" "}
+            <span className="dash-greeting__name">{firstName}</span>
           </h1>
           <p className="page-intro">
             {total

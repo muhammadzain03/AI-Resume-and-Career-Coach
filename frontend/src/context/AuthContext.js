@@ -7,7 +7,9 @@ import {
   googleAuth as apiGoogleAuth,
   loginUser as apiLogin,
   registerUser as apiRegister,
+  resendVerificationCode as apiResendCode,
   setAuthSession,
+  verifyEmailCode as apiVerifyCode,
 } from "../services/api";
 
 const AuthContext = createContext(null);
@@ -47,21 +49,31 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const data = await apiLogin(email, password);
-    setUser(data.user);
+    if (data.user) setUser(data.user);
     return data;
   };
 
+  // Signup no longer returns a session - the account stays pending until the
+  // emailed code is verified, so there is no user to set here.
   const signup = async (name, email, password) => {
     const data = await apiRegister(name, email, password);
-    setUser(data.user);
+    if (data.user) setUser(data.user);
     return data;
   };
 
   const googleLogin = async (credential) => {
     const data = await apiGoogleAuth(credential);
-    setUser(data.user);
+    if (data.user) setUser(data.user);
     return data;
   };
+
+  const verifyCode = async (email, code) => {
+    const data = await apiVerifyCode(email, code);
+    if (data.user) setUser(data.user);
+    return data;
+  };
+
+  const resendCode = (email) => apiResendCode(email);
 
   const logout = () => {
     clearAuthSession();
@@ -81,6 +93,8 @@ export function AuthProvider({ children }) {
     login,
     signup,
     googleLogin,
+    verifyCode,
+    resendCode,
     logout,
     deleteAccount,
     refreshUser: bootstrap,

@@ -4949,3 +4949,67 @@ a {
   from { opacity: 0; transform: translateY(6px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* =========================================================================
+   Auth - email code verification step
+   ========================================================================= */
+
+.auth-verify__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  margin-bottom: 0.9rem;
+}
+
+.auth-verify__title {
+  font-family: "Manrope", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 0.35rem;
+}
+
+.auth-code-input {
+  text-align: center;
+  font-family: "Space Grotesk", monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em; /* re-center: letter-spacing adds a trailing gap */
+}
+
+.auth-verify__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.auth-verify__link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.auth-verify__link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.auth-verify__link:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+}
