@@ -47,7 +47,13 @@ services:
       - key: GOOGLE_CLIENT_ID
         sync: false
 
-      # --- Email (Gmail SMTP) ---
+      # --- Email ---
+      # Render free tier blocks SMTP (ports 25/465/587). Use Resend over HTTPS.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
+      # SMTP kept for local Docker dev only (optional on Render):
       - key: MAIL_SERVER
         value: smtp.gmail.com
       - key: MAIL_PORT

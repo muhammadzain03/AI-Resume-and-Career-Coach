@@ -191,12 +191,14 @@ The local PostgreSQL container is based on the postgres:18-alpine image, listens
 | JWT_REFRESH_TOKEN_EXPIRES | Refresh token lifetime in seconds. |
 | GOOGLE_CLIENT_ID | Google OAuth web client ID. Must match the frontend value. |
 | FRONTEND_URL | Full URL of the frontend, including the scheme. Used in welcome email links. |
-| MAIL_SERVER | SMTP server host. |
-| MAIL_PORT | SMTP server port. |
-| MAIL_USE_TLS | Whether to use TLS. |
-| MAIL_USE_SSL | Whether to use SSL. |
-| MAIL_USERNAME | SMTP username. |
-| MAIL_PASSWORD | SMTP password or application password. |
+| RESEND_API_KEY | Resend API key (required on Render - SMTP is blocked on the free tier). |
+| RESEND_FROM | Sender address, e.g. `RCC <hello@resumecoach.app>` after domain verification in Resend. |
+| MAIL_SERVER | SMTP server host (local Docker dev only). |
+| MAIL_PORT | SMTP server port (local Docker dev only). |
+| MAIL_USE_TLS | Whether to use TLS (local Docker dev only). |
+| MAIL_USE_SSL | Whether to use SSL (local Docker dev only). |
+| MAIL_USERNAME | SMTP username (local Docker dev only). |
+| MAIL_PASSWORD | SMTP password or application password (local Docker dev only). |
 | LLM_API_KEY | Google Gemini API key. Optional. When empty, deterministic fallbacks are used. |
 | LLM_BASE_URL | Base URL for the OpenAI-compatible Gemini endpoint. |
 | LLM_MODEL | Model name, for example gemini-2.5-flash. |

@@ -1,6 +1,7 @@
 import logging
 import threading
 
+import requests
 from flask import current_app
 from flask_mail import Mail, Message
 
@@ -9,6 +10,7 @@ from config import Config
 logger = logging.getLogger(__name__)
 
 mail = Mail()
+RESEND_API_URL = "https://api.resend.com/emails"
 
 
 def init_mail(app):
@@ -22,34 +24,69 @@ def init_mail(app):
         MAIL_DEFAULT_SENDER=Config.MAIL_DEFAULT_SENDER or Config.MAIL_USERNAME,
     )
     mail.init_app(app)
-    if Config.mail_configured():
-        logger.info("Mail configured for sender %s", Config.MAIL_USERNAME)
+    if Config.resend_configured():
+        logger.info("Email via Resend API (from %s)", Config.RESEND_FROM)
+    elif Config.smtp_configured():
+        logger.info("Email via SMTP (from %s)", Config.MAIL_USERNAME)
     else:
-        logger.warning("Mail is NOT configured - welcome emails will be skipped")
+        logger.warning("Email is NOT configured - welcome emails will be skipped")
 
 
-def _send_async(app, msg):
+def _send_smtp(app, msg):
     with app.app_context():
-        try:
-            mail.send(msg)
-            logger.info("Welcome email sent to %s", msg.recipients)
-        except Exception:
-            logger.exception("Failed to send email to %s", msg.recipients)
+        mail.send(msg)
 
 
-def _dispatch(msg):
-    """Send an email without blocking the request.
+def _send_resend(to_email, subject, body, html):
+    response = requests.post(
+        RESEND_API_URL,
+        headers={
+            "Authorization": f"Bearer {Config.RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "from": Config.RESEND_FROM,
+            "to": [to_email],
+            "subject": subject,
+            "html": html,
+            "text": body,
+        },
+        timeout=30,
+    )
+    if not response.ok:
+        detail = response.text[:500]
+        raise RuntimeError(f"Resend API {response.status_code}: {detail}")
 
-    SMTP delivery can take several seconds, so we hand the message off to a
-    background thread and return immediately. The thread is non-daemon so
-    gunicorn on Render does not tear it down before SMTP finishes.
-    """
+
+def _send_async(app, payload):
+    """Deliver one welcome email. Resend uses HTTPS (works on Render free tier)."""
+    try:
+        if payload["provider"] == "resend":
+            _send_resend(
+                payload["to_email"],
+                payload["subject"],
+                payload["body"],
+                payload["html"],
+            )
+        else:
+            _send_smtp(app, payload["msg"])
+        logger.info("Welcome email sent to %s", payload["to_email"])
+    except Exception:
+        logger.exception("Failed to send email to %s", payload["to_email"])
+
+
+def _dispatch(payload):
+    """Queue email delivery on a background thread (non-daemon for gunicorn)."""
     if not Config.mail_configured():
-        logger.warning("Mail not configured; skipping email to %s", msg.recipients)
+        logger.warning(
+            "Mail not configured; skipping email to %s", payload["to_email"]
+        )
         return False
 
     app = current_app._get_current_object()
-    threading.Thread(target=_send_async, args=(app, msg), daemon=False).start()
+    threading.Thread(
+        target=_send_async, args=(app, payload), daemon=False
+    ).start()
     return True
 
 
@@ -101,5 +138,16 @@ def send_welcome_email(to_email, name, confirm_token=None):
         f"<p>Best of luck with your job search,<br/>The RCC Team</p>"
     )
 
-    msg = Message(subject=subject, recipients=[to_email], body=body, html=html)
-    return _dispatch(msg)
+    if Config.resend_configured():
+        payload = {
+            "provider": "resend",
+            "to_email": to_email,
+            "subject": subject,
+            "body": body,
+            "html": html,
+        }
+    else:
+        msg = Message(subject=subject, recipients=[to_email], body=body, html=html)
+        payload = {"provider": "smtp", "to_email": to_email, "msg": msg}
+
+    return _dispatch(payload)

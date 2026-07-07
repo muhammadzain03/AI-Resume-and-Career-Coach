@@ -42,6 +42,14 @@ class Config:
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", MAIL_USERNAME)
 
+    # Resend sends over HTTPS (port 443). Required on Render's free tier, which
+    # blocks outbound SMTP (ports 25/465/587) and causes "Network is unreachable".
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    RESEND_FROM = os.getenv(
+        "RESEND_FROM",
+        'RCC <onboarding@resend.dev>',
+    )
+
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
     LLM_BASE_URL = os.getenv(
         "LLM_BASE_URL",
@@ -50,5 +58,13 @@ class Config:
     LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
 
     @classmethod
-    def mail_configured(cls):
+    def smtp_configured(cls):
         return bool(cls.MAIL_USERNAME and cls.MAIL_PASSWORD)
+
+    @classmethod
+    def resend_configured(cls):
+        return bool(cls.RESEND_API_KEY and cls.RESEND_FROM)
+
+    @classmethod
+    def mail_configured(cls):
+        return cls.resend_configured() or cls.smtp_configured()
