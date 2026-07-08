@@ -344,7 +344,7 @@ const HomePage = () => {
                       }
                 }
               >
-                <ProductFrame className="product-frame--hero" {...heroFrameProps} />
+                <ProductFrame className="product-frame--hero" {...heroFrameProps} headingLevel="h2" />
               </motion.div>
             </div>
           </motion.div>
@@ -378,7 +378,7 @@ const HomePage = () => {
           title={feature.title}
           body={feature.body}
           points={feature.points}
-          frame={<ProductFrame {...feature.frameProps} />}
+          frame={<ProductFrame {...feature.frameProps} headingLevel="h3" />}
           flip={feature.flip}
           className={feature.className}
         />

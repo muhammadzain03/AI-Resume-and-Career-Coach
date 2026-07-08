@@ -15,6 +15,8 @@
   --display-2: clamp(34px, 4.5vw, 60px);
   --ink-secondary: #3a3a3a;
   --ink-muted: #777777;
+  /* Muted, but dark enough to clear WCAG AA (4.5:1) on the footer/page bg. */
+  --ink-footer-muted: #595959;
   --surface-elevated: #f0f0f0;
   --accent: #00a47a;
   --accent-soft: rgba(0, 164, 122, 0.12);
@@ -54,6 +56,8 @@
   --display-2: clamp(34px, 4.5vw, 60px);
   --ink-secondary: #b3b8b5;
   --ink-muted: #6f7672;
+  /* Lighter than --ink-muted so it clears WCAG AA on the near-black footer. */
+  --ink-footer-muted: #9ba19d;
   --surface-elevated: #141a18;
   --accent: #00d4aa;
   --accent-soft: rgba(0, 212, 170, 0.14);
@@ -673,7 +677,7 @@ a {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-muted);
+  color: var(--ink-footer-muted);
   margin: 0 0 0.85rem;
 }
 
@@ -699,7 +703,7 @@ a {
 .site-footer__copy {
   text-align: center;
   padding-top: 1.75rem;
-  color: var(--ink-muted);
+  color: var(--ink-footer-muted);
   font-size: 0.75rem;
   margin: 0;
 }
@@ -1577,7 +1581,7 @@ a {
   font-size: clamp(1.35rem, 2vw, 1.65rem);
 }
 
-.product-frame--hero .product-frame__score-meta h4 {
+.product-frame--hero .product-frame__score-meta .product-frame__headline {
   font-size: clamp(1rem, 1.4vw, 1.2rem);
 }
 
@@ -1836,7 +1840,7 @@ a {
   color: var(--ink);
 }
 
-.product-frame__score-meta h4 {
+.product-frame__score-meta .product-frame__headline {
   margin: 0 0 0.25rem;
   font-size: 0.95rem;
 }
@@ -1896,7 +1900,7 @@ a {
   margin-bottom: 0.85rem;
 }
 
-.pf-scoring__headline h4 {
+.pf-scoring__headline .product-frame__headline {
   margin: 0 0 0.25rem;
   font-size: 0.95rem;
 }
@@ -2134,7 +2138,7 @@ a {
   min-width: 0;
 }
 
-.pf-interview__headline h4 {
+.pf-interview__headline .product-frame__headline {
   margin: 0 0 0.15rem;
   font-size: 0.9rem;
 }

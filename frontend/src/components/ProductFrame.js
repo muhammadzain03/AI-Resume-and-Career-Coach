@@ -23,7 +23,7 @@ function FrameChrome({ title, children }) {
 }
 
 /* ---- Variant 1: ATS analysis (score ring + matched / gap rows) ---- */
-function AnalysisBody({ score, headline, subtitle, rows }) {
+function AnalysisBody({ score, headline, subtitle, rows, Heading }) {
   return (
     <div className="product-frame__card">
       <div className="product-frame__score">
@@ -34,7 +34,7 @@ function AnalysisBody({ score, headline, subtitle, rows }) {
           <b>{score}</b>
         </div>
         <div className="product-frame__score-meta">
-          <h4>{headline}</h4>
+          <Heading className="product-frame__headline">{headline}</Heading>
           <p>{subtitle}</p>
         </div>
       </div>
@@ -99,12 +99,12 @@ function ResumeBody({ headline, subtitle, file = "resume.pdf", lines = [] }) {
 }
 
 /* ---- Variant 2: job-fit scoring (match meter + prioritized keyword gaps) ---- */
-function ScoringBody({ score, headline, subtitle, missing = [], matched = [] }) {
+function ScoringBody({ score, headline, subtitle, missing = [], matched = [], Heading }) {
   return (
     <div className="product-frame__card pf-scoring">
       <div className="pf-scoring__head">
         <div className="pf-scoring__headline">
-          <h4>{headline}</h4>
+          <Heading className="product-frame__headline">{headline}</Heading>
           <p>{subtitle}</p>
         </div>
         <span className="pf-scoring__score">{score}%</span>
@@ -136,7 +136,7 @@ function ScoringBody({ score, headline, subtitle, missing = [], matched = [] }) 
 }
 
 /* ---- Variant 3: interview practice (chat transcript mockup) ---- */
-function InterviewBody({ headline, subtitle, messages = [], progress }) {
+function InterviewBody({ headline, subtitle, messages = [], progress, Heading }) {
   return (
     <div className="product-frame__card pf-interview">
       <div className="pf-interview__head">
@@ -144,7 +144,7 @@ function InterviewBody({ headline, subtitle, messages = [], progress }) {
           RCC
         </div>
         <div className="pf-interview__headline">
-          <h4>{headline}</h4>
+          <Heading className="product-frame__headline">{headline}</Heading>
           <p>{subtitle}</p>
         </div>
         {progress && <span className="pf-interview__progress">{progress}</span>}
@@ -183,10 +183,16 @@ const ProductFrame = ({
   lines = [],
   children,
   className = "",
+  // Heading level for the frame's headline, so the mockups slot into the
+  // page's heading hierarchy without skipping levels (a11y). Capitalized so
+  // JSX renders it as the tag (e.g. "h2" -> <h2>).
+  headingLevel = "h3",
 }) => {
   const classes = ["product-frame", `product-frame--${variant}`, className]
     .filter(Boolean)
     .join(" ");
+
+  const Heading = headingLevel;
 
   let body;
   if (variant === "resume") {
@@ -206,6 +212,7 @@ const ProductFrame = ({
         subtitle={subtitle}
         missing={missing}
         matched={matched}
+        Heading={Heading}
       />
     );
   } else if (variant === "interview") {
@@ -215,6 +222,7 @@ const ProductFrame = ({
         subtitle={subtitle}
         messages={messages}
         progress={progress}
+        Heading={Heading}
       />
     );
   } else {
@@ -224,6 +232,7 @@ const ProductFrame = ({
         headline={headline}
         subtitle={subtitle}
         rows={rows}
+        Heading={Heading}
       />
     );
   }
