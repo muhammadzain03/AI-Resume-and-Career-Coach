@@ -11,6 +11,7 @@ import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import InterviewPage from "./pages/InterviewPage";
 import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
+import TermsPage from "./pages/TermsPage";
 import "./styles/main.css";
 
 const THEME_STORAGE_KEY = "rcc-theme";
@@ -47,6 +48,7 @@ function App() {
         element={<PublicLayout theme={theme} onToggleTheme={toggleTheme} />}
       >
         <Route path="/" element={<HomePage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage />} />
         <Route path="/verify-email" element={<Navigate to="/login" replace />} />

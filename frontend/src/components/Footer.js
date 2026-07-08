@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import Button from "./Button";
-
-const DOCS_URL =
-  "https://github.com/muhammadzain03/AI-Resume-and-Career-Coach/blob/main/docs/RCC-Project-Documentation.md";
 
 const CONTACT_EMAIL = "arcc.resume@gmail.com";
 
@@ -27,7 +24,7 @@ const FOOTER_COLUMNS = [
     title: "Support",
     links: [
       { label: "Contact", contact: true },
-      { label: "Terms", href: DOCS_URL, external: true },
+      { label: "Terms", href: "/terms", internal: true },
     ],
   },
 ];
@@ -183,6 +180,10 @@ const Footer = () => {
                         <ContactPopover onClose={() => setContactOpen(false)} />
                       )}
                     </span>
+                  </li>
+                ) : link.internal ? (
+                  <li key={link.label}>
+                    <Link to={link.href}>{link.label}</Link>
                   </li>
                 ) : (
                   <li key={link.label}>
