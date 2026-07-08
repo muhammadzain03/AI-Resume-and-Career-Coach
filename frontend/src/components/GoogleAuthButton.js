@@ -5,10 +5,12 @@ const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 const GoogleAuthButton = ({ onSuccess, onError, disabled, label = "Continue with Google" }) => {
   const btnRef = useRef(null);
   const callbackRef = useRef(onSuccess);
+  const errorRef = useRef(onError);
 
   useEffect(() => {
     callbackRef.current = onSuccess;
-  }, [onSuccess]);
+    errorRef.current = onError;
+  }, [onSuccess, onError]);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !btnRef.current) return;
@@ -17,7 +19,7 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled, label = "Continue with
       if (response?.credential) {
         callbackRef.current?.(response.credential);
       } else {
-        onError?.(new Error("Google sign-in failed"));
+        errorRef.current?.(new Error("Google sign-in failed"));
       }
     };
 
@@ -53,7 +55,11 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled, label = "Continue with
     script.defer = true;
     script.onload = renderButton;
     document.body.appendChild(script);
-  }, [onError]);
+    // Initialize/render exactly once on mount. onSuccess/onError are read
+    // through refs, so re-renders (e.g. typing in the form) no longer re-run
+    // this effect and re-call google.accounts.id.initialize().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!GOOGLE_CLIENT_ID) {
     return null;
