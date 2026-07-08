@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from flask import Flask, jsonify
@@ -7,6 +8,8 @@ from werkzeug.exceptions import RequestEntityTooLarge
 
 from config import Config
 from extensions import limiter
+
+logger = logging.getLogger(__name__)
 from routes.auth_routes import auth_bp
 from routes.resume_routes import resume_bp
 from routes.analysis_routes import analysis_bp
@@ -25,12 +28,33 @@ def create_app():
         seconds=Config.JWT_REFRESH_TOKEN_EXPIRES
     )
 
+    # Only our own frontend (and localhost during development) may call the API
+    # from a browser. Requests from any other site get no CORS approval.
     CORS(
         app,
-        resources={r"/api/*": {"origins": "*"}},
+        resources={r"/api/*": {"origins": Config.CORS_ORIGINS}},
         allow_headers=["Content-Type", "Authorization"],
         expose_headers=["Content-Type"],
     )
+
+    @app.after_request
+    def set_security_headers(response):
+        """Baseline hardening headers on every API response. The API only ever
+        returns JSON, so a strict CSP here costs nothing and blocks a compromised
+        response from loading external scripts."""
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+        )
+        # HSTS is ignored by browsers over plain HTTP, so it's safe to always set;
+        # it only takes effect once served over HTTPS (Render terminates TLS).
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+        return response
 
     JWTManager(app)
     init_mail(app)
@@ -65,9 +89,9 @@ def create_app():
             cur.execute("SELECT 1")
             cur.fetchone()
             cur.close()
-        except Exception as exc:  # noqa: BLE001 - report any DB failure to the caller
+        except Exception as exc:  # noqa: BLE001 - never crash the health check
             db_ok = False
-            db_error = str(exc)[:200]
+            db_error = str(exc)
         finally:
             if conn is not None:
                 try:
@@ -75,11 +99,15 @@ def create_app():
                 except Exception:
                     pass
 
+        # Log the real error server-side, but don't expose DB internals (host,
+        # driver, stack details) to anonymous callers of a public endpoint.
+        if not db_ok:
+            logger.warning("Health check: database unreachable: %s", db_error)
+
         status = "ok" if db_ok else "degraded"
         return jsonify({
             "status": status,
             "database": "ok" if db_ok else "unreachable",
-            "database_error": db_error,
         }), (200 if db_ok else 503)
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")

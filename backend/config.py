@@ -34,6 +34,18 @@ class Config:
         or "http://localhost:5000"
     ).rstrip("/")
 
+    # Browser origins allowed to call the API (CORS). Defaults to the real
+    # frontend plus localhost for development. Override with a comma-separated
+    # CORS_ORIGINS env var if you ever serve the frontend from more domains.
+    CORS_ORIGINS = [
+        origin.strip().rstrip("/")
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            ",".join([FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000"]),
+        ).split(",")
+        if origin.strip()
+    ]
+
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"

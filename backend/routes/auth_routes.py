@@ -99,6 +99,7 @@ def auth_health():
 
 
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("15 per hour")
 def register():
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
@@ -145,6 +146,8 @@ def register():
 
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("10 per minute")
+@limiter.limit("50 per hour")
 def login():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
@@ -188,6 +191,7 @@ def login():
 
 
 @auth_bp.route("/google", methods=["POST"])
+@limiter.limit("20 per minute")
 def google_auth():
     data = request.get_json(silent=True) or {}
     credential = data.get("credential") or data.get("id_token") or ""
