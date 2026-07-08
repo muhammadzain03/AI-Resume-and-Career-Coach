@@ -56,9 +56,9 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled, label = "Continue with
     script.onload = renderButton;
     document.body.appendChild(script);
     // Initialize/render exactly once on mount. onSuccess/onError are read
-    // through refs, so re-renders (e.g. typing in the form) no longer re-run
-    // this effect and re-call google.accounts.id.initialize().
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // through refs (btnRef/callbackRef/errorRef) and GOOGLE_CLIENT_ID is a
+    // module constant, so there are no reactive dependencies - re-renders
+    // (e.g. typing in the form) no longer re-call google.accounts.id.initialize().
   }, []);
 
   if (!GOOGLE_CLIENT_ID) {
