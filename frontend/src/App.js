@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import PublicLayout from "./components/PublicLayout";
 import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -38,7 +39,9 @@ function App() {
     setTheme((t) => (t === "light" ? "dark" : "light"));
 
   return (
-    <Routes>
+    <>
+      <Analytics />
+      <Routes>
       <Route path="/upload" element={<Navigate to="/app/analyze" replace />} />
       <Route path="/job" element={<Navigate to="/app/analyze" replace />} />
       <Route path="/dashboard" element={<Navigate to="/app" replace />} />
@@ -70,7 +73,8 @@ function App() {
         <Route path="history/:analysisId" element={<AnalysisDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }
 
