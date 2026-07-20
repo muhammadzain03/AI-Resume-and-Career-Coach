@@ -8,6 +8,11 @@ import AnalysisResults from "../components/AnalysisResults";
 import { uploadResume, runAnalysis, getAnalysis } from "../services/api";
 import { validateResumeFile } from "../utils/validation";
 import { toUserMessage } from "../utils/errors";
+import useElapsedSeconds from "../utils/useElapsedSeconds";
+
+// Past this many seconds a slow response is almost always the free-tier
+// backend waking from a cold start, so we reassure the user it isn't stuck.
+const COLD_START_HINT_AFTER = 8;
 
 const AnalyzePage = () => {
   const [file, setFile] = useState(null);
@@ -23,6 +28,7 @@ const AnalyzePage = () => {
   const resultsRef = useRef(null);
 
   const busy = uploading || analyzing;
+  const elapsed = useElapsedSeconds(busy);
 
   const acceptFile = (f) => {
     if (!f) return;
@@ -223,9 +229,18 @@ const AnalyzePage = () => {
             {busy ? (
               <div className="analyze-progress">
                 <Spinner size={26} />
-                <span className="analyze-progress__text">
-                  {progress || "Working..."}
-                </span>
+                <div className="analyze-progress__body">
+                  <span className="analyze-progress__text">
+                    {progress || "Working..."}
+                    <span className="analyze-progress__timer"> · {elapsed}s</span>
+                  </span>
+                  {elapsed >= COLD_START_HINT_AFTER && (
+                    <span className="analyze-progress__hint">
+                      Still working — the free-tier server may be waking up. This
+                      is usually quick after the first request.
+                    </span>
+                  )}
+                </div>
               </div>
             ) : (
               <Button

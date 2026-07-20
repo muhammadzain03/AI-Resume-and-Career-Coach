@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Button from "../components/Button";
+import MessageList from "./MessageList";
 import { startInterview, submitAnswer, endInterview } from "../services/api";
 import { toUserMessage } from "../utils/errors";
+import useElapsedSeconds from "../utils/useElapsedSeconds";
 
 const getSpeechRecognition = () =>
   typeof window !== "undefined"
@@ -26,6 +28,8 @@ const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
   const recognitionRef = useRef(null);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  const waitElapsed = useElapsedSeconds(loading);
 
   const scrollToBottom = useCallback(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -170,6 +174,7 @@ const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
 
   useEffect(() => {
     const initInterview = async () => {
+      setLoading(true);
       try {
         const result = await startInterview(jobDescription, role, resumeId);
         setSessionId(result.session_id);
@@ -182,6 +187,8 @@ const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
           type: "system",
           text: toUserMessage(err),
         }]);
+      } finally {
+        setLoading(false);
       }
     };
     initInterview();
@@ -271,16 +278,6 @@ const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
     if (latest) {
       lastSpokenRef.current = "";
       speakAndAutoListen(latest);
-    }
-  };
-
-  const msgIcon = (type) => {
-    switch (type) {
-      case "question": return "Q";
-      case "answer": return "A";
-      case "feedback": return "F";
-      case "summary": return "S";
-      default: return "i";
     }
   };
 
@@ -375,51 +372,12 @@ const InterviewChat = ({ jobDescription, role = "", resumeId = null }) => {
 
         {/* Chat Panel */}
         <div className="interview-chat-panel">
-          <div className="interview-chat-messages">
-            {messages.map((msg, idx) => {
-              if (msg.type === "score") {
-                const score = Number(msg.text);
-                const tone =
-                  score >= 75 ? "high" : score >= 50 ? "mid" : "low";
-                return (
-                  <div
-                    key={idx}
-                    className={`interview-score-card interview-score-card--${tone}`}
-                  >
-                    <span className="interview-score-card__num">{score}</span>
-                    <span className="interview-score-card__label">
-                      Interview score
-                    </span>
-                  </div>
-                );
-              }
-              return (
-                <div
-                  key={idx}
-                  className={`interview-msg interview-msg--${msg.type}`}
-                >
-                  <span className={`interview-msg__icon interview-msg__icon--${msg.type}`}>
-                    {msgIcon(msg.type)}
-                  </span>
-                  <div className="interview-msg__bubble">
-                    <p className="interview-msg__text">{msg.text}</p>
-                  </div>
-                </div>
-              );
-            })}
-
-            {loading && (
-              <div className="interview-msg interview-msg--question">
-                <span className="interview-msg__icon interview-msg__icon--question">
-                  Q
-                </span>
-                <div className="interview-msg__bubble interview-typing" aria-label="Coach is thinking">
-                  <span /><span /><span />
-                </div>
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
+          <MessageList
+            messages={messages}
+            loading={loading}
+            elapsed={waitElapsed}
+            endRef={chatEndRef}
+          />
 
           {voiceNote && <p className="interview-voice-note">{voiceNote}</p>}
 
