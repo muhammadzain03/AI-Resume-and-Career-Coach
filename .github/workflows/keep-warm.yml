@@ -2,23 +2,23 @@ name: Keep backend warm
 
 # Render's free tier spins the backend down after ~15 minutes of inactivity,
 # which causes a 30-60s cold start on the next request (this is what makes the
-# first Google/email sign-in feel slow). This workflow pings the lightweight
-# health endpoint on a schedule so the service stays awake.
+# first Google/email sign-in feel slow).
+#
+# PRIMARY keep-warm is now an external uptime monitor (UptimeRobot) that pings
+# /api/auth/health every 5 minutes. GitHub throttles free-tier `schedule` runs
+# heavily (they fired only every few hours, not every 10 min), so cron here
+# never reliably kept the service warm. The schedule is therefore disabled and
+# this workflow is kept only for manual, on-demand warming from the Actions tab.
 #
 # Setup: set a repository variable named BACKEND_URL to your Render base URL,
 #   e.g. https://rcc-backend.onrender.com
 #   (GitHub -> repo -> Settings -> Secrets and variables -> Actions -> Variables)
 # If you don't set it, the fallback below is used.
-#
-# Notes:
-#   - GitHub may delay scheduled runs under load; ~10 min is a safe target.
-#   - Scheduled workflows are auto-disabled after 60 days with no repo activity;
-#     any push re-enables them.
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (under Render's 15-min idle window)
-  workflow_dispatch: {}        # allow manual runs from the Actions tab
+  # schedule:
+  #   - cron: "*/10 * * * *"   # disabled: GitHub cron too unreliable for keep-warm (external monitor handles it)
+  workflow_dispatch: {}        # manual runs from the Actions tab
 
 jobs:
   ping:
