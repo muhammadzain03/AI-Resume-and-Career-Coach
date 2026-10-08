@@ -1,16 +1,16 @@
-# RCC — core engine review & improvement plan
+# RCC - core engine review & improvement plan
 
-A code review of the **functional heart** of RCC — resume scoring/analysis and the interview
-engine — with a prioritized, Cursor-ready plan to fix issues and upgrade quality. This is about
+A code review of the **functional heart** of RCC - resume scoring/analysis and the interview
+engine - with a prioritized, implementation-ready plan to fix issues and upgrade quality. This is about
 what the product *does*, not how the homepage looks.
 
 **Reviewed (from the repo):**
-- `backend/integrations/llm_client.py` — analysis orchestration (Gemini, OpenAI-compat)
-- `backend/services/analysis_service.py` — deterministic keyword overlap
-- `backend/services/interview_engine.py` — interview sessions + LLM/fallback
-- `backend/services/resume_parser.py` — PDF/DOCX/TXT extraction
-- `backend/routes/*` — analysis, interview, resume, auth
-- `backend/database/init/01-schema.sql` — PostgreSQL schema
+- `backend/integrations/llm_client.py` - analysis orchestration (Gemini, OpenAI-compat)
+- `backend/services/analysis_service.py` - deterministic keyword overlap
+- `backend/services/interview_engine.py` - interview sessions + LLM/fallback
+- `backend/services/resume_parser.py` - PDF/DOCX/TXT extraction
+- `backend/routes/*` - analysis, interview, resume, auth
+- `backend/database/init/01-schema.sql` - PostgreSQL schema
 - `backend/config.py`, `frontend/src/pages/AnalyzePage.js`, `frontend/src/components/InterviewChat.js`
 
 **Stack reality check:** the DB is **PostgreSQL 18** (`psycopg2`, Neon in production, port 5432),
@@ -23,7 +23,7 @@ the browser lacks Web Speech API). L1 drag-and-drop upload is implemented.
 
 ---
 
-## What's already strong (keep these — don't "refactor" them away)
+## What's already strong (keep these - don't "refactor" them away)
 
 - **Hybrid scoring** in `analyze_resume_job`: a deterministic keyword-overlap baseline blended
   `0.3*baseline + 0.7*LLM` so the score can't hallucinate wildly off the keyword reality. This is
@@ -39,7 +39,7 @@ Now the fixes, in priority order.
 
 ---
 
-# CRITICAL — fix before you call it "deployed"
+# CRITICAL - fix before you call it "deployed"
 
 ## C1. Interview sessions live in memory → they vanish
 
@@ -86,12 +86,12 @@ failure modes that silently wreck every downstream score:
 
 **Fix (applied):**
 1. **Better extractor.** `pdfplumber` (layout-aware) is preferred; `pypdf` is the fallback.
-2. **Quality guard — never score empty/garbage text.** `looks_extractable()` in `resume_parser.py`
+2. **Quality guard - never score empty/garbage text.** `looks_extractable()` in `resume_parser.py`
    runs after extraction; `resume_routes.py` returns `low_text_extraction` when it fails.
 
 ---
 
-# HIGH — directly improves the quality of the core output
+# HIGH - directly improves the quality of the core output
 
 ## H1. Turn on JSON mode for both LLM calls
 
@@ -100,7 +100,7 @@ failure modes that silently wreck every downstream score:
 parse failure before falling back. Originally both `_chat_completion` functions relied on prompting for JSON + stripping ``` fences. When the model
 adds prose or breaks the JSON, analysis silently drops to the **generic** `_FALLBACK_SUGGESTIONS`
 (the user gets boilerplate, not real analysis) and the interview returns a canned line. Gemini's
-OpenAI-compatible endpoint supports structured output — request it:
+OpenAI-compatible endpoint supports structured output - request it:
 ```python
 payload = {
     "model": Config.LLM_MODEL,
@@ -111,13 +111,13 @@ payload = {
 ```
 This makes `_extract_json_object` / `_parse_llm_response` succeed far more often, so real analysis
 shows up instead of fallback. (Keep the fence-stripping as a belt-and-suspenders fallback.)
-*Also* add a single retry on parse failure before falling back — one reroll fixes most flukes.
+*Also* add a single retry on parse failure before falling back - one reroll fixes most flukes.
 
 ## H2. Persist interview results so they can be reviewed
 
 **Implemented.** Completed interviews write `summary` (and `score` when present) to
 `interview_sessions`. `GET /interview/history` and `GET /interview/<session_id>` expose past
-sessions for review from the dashboard History page. Originally analyses were saved to `analysis_results`, but **interviews were saved nowhere** — yet the product
+sessions for review from the dashboard History page. Originally analyses were saved to `analysis_results`, but **interviews were saved nowhere** - yet the product
 sells "AI interview feedback" and has a History page. On completion (`is_complete` in
 `_get_next_llm` / `_get_next_static`, and `end_session`), write the final transcript + summary to
 the `interview_sessions` row (or a dedicated `interview_feedback` table). Then add a History entry
@@ -137,7 +137,7 @@ the two code paths' history shape identical so `get_session` and any review UI a
 
 ---
 
-# MEDIUM — robustness, cost, and accuracy
+# MEDIUM - robustness, cost, and accuracy
 
 ## M1. Cache identical analyses
 
@@ -180,23 +180,23 @@ which also gives the LLM a better hint.
 **Partially implemented (option b).** `InterviewChat.js` feature-detects Web Speech API support and
 disables the mic elsewhere; voice remains Chrome/Edge only. Server-side STT stub unchanged.
 `integrations/stt_client.py` is a stub and `/interview/transcribe` returns empty text, while
-`InterviewChat` actually uses the **browser** Web Speech API (`SpeechRecognition`) — which only
+`InterviewChat` actually uses the **browser** Web Speech API (`SpeechRecognition`) - which only
 works in Chrome/Edge. So Safari/Firefox users get a mic button that does nothing useful. Pick one:
 - **(a)** Wire real server-side transcription (Gemini accepts audio input) so voice works
   cross-browser, and use the existing `/transcribe` route; **or**
 - **(b)** Keep it browser-only but **feature-detect** and hide/disable the mic with a tooltip
-  ("Voice answers work in Chrome and Edge") everywhere else. Either is fine — just don't ship a
+  ("Voice answers work in Chrome and Edge") everywhere else. Either is fine - just don't ship a
   dead button. Remove the unused stub if you choose (b).
 
 ---
 
-# LOW — polish
+# LOW - polish
 
 - **L1. Drag-and-drop upload.** **Implemented** in `AnalyzePage.js` (dropzone with type and 4 MB validation).
   `AnalyzePage` is click-to-upload only; add a dropzone with the
   empty-state copy from the homepage plan. Validate type + the 4 MB limit with a clear message.
 - **L2. Store `score_breakdown` in its own column** (or a PostgreSQL `JSONB` column) instead of packing
-  it inside the `suggestions` TEXT — cleaner for future analytics/sorting. Low priority; current
+  it inside the `suggestions` TEXT - cleaner for future analytics/sorting. Low priority; current
   pack/unpack works.
 - **L3. Smarter job-title detection.** `extract_job_title` takes the first non-empty line; let the
   LLM return a `role_title` field in the analysis JSON and prefer it when present.
@@ -209,19 +209,19 @@ works in Chrome/Edge. So Safari/Firefox users get a mic button that does nothing
 
 | # | Task | Severity | Why now |
 |---|------|----------|---------|
-| 1 | C1 — persist interview sessions (DB/Redis) | Critical | Breaks on restart / multi-worker |
-| 2 | C2 — better extraction + empty-text guard | Critical | Garbage-in ruins every score |
-| 3 | H1 — JSON mode + 1 retry on both LLM calls | High | Real analysis instead of fallback |
-| 4 | H3 — store question in LLM-mode history | High | Cheap; fixes transcript integrity |
-| 5 | H2 — persist + review interview results | High | Delivers a promised feature |
-| 6 | M2 — rate limiting | Medium | Protects cost before traffic arrives |
-| 7 | M3 — skill alias/bigram normalization | Medium | More accurate scores |
-| 8 | M1 — analysis cache | Medium | Speed + token savings |
-| 9 | M4 — STT decision | Medium | No dead mic button |
-| 10 | L1–L4 — polish | Low | After the above |
+| 1 | C1 - persist interview sessions (DB/Redis) | Critical | Breaks on restart / multi-worker |
+| 2 | C2 - better extraction + empty-text guard | Critical | Garbage-in ruins every score |
+| 3 | H1 - JSON mode + 1 retry on both LLM calls | High | Real analysis instead of fallback |
+| 4 | H3 - store question in LLM-mode history | High | Cheap; fixes transcript integrity |
+| 5 | H2 - persist + review interview results | High | Delivers a promised feature |
+| 6 | M2 - rate limiting | Medium | Protects cost before traffic arrives |
+| 7 | M3 - skill alias/bigram normalization | Medium | More accurate scores |
+| 8 | M1 - analysis cache | Medium | Speed + token savings |
+| 9 | M4 - STT decision | Medium | No dead mic button |
+| 10 | L1–L4 - polish | Low | After the above |
 
-**One correctness rule for Cursor (paste once):** *"Don't change the hybrid-scoring blend in
-`analyze_resume_job` or the fallback paths — they're intentional. Add JSON mode, persistence, and a
+**One correctness rule (paste once):** *"Don't change the hybrid-scoring blend in
+`analyze_resume_job` or the fallback paths - they're intentional. Add JSON mode, persistence, and a
 parse-quality guard around them. Keep all existing function signatures and the route contracts in
 `routes/` unchanged."*
 

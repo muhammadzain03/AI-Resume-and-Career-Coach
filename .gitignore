@@ -15,6 +15,10 @@ backend/**/*.pyc
 .DS_Store
 Thumbs.db
 
+# Selenium assignment virtualenv (selenium_tests/)
+**/.venv/
+selenium_tests/.venv/
+
 # Local batch scripts (do not commit)
 *.bat
 

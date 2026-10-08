@@ -1,0 +1,5 @@
+# Selenium WebDriver (Assignment 01 - ENSF 519)
+# Keep this env separate from backend/requirements.txt (production Flask deps).
+
+selenium>=4.15.0,<5
+webdriver-manager>=4.0.0,<5
