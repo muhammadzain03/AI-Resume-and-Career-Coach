@@ -5,6 +5,8 @@ Environment for Python Selenium WebDriver scripts against RCC
 
 Scripts only - **not** Selenium IDE.
 
+The `.venv/` folder is gitignored. Create and activate it on each machine after cloning.
+
 ## Setup (one-time)
 
 From this folder (`selenium_tests/`):
@@ -57,7 +59,7 @@ pytest tests/
 
 ## Prerequisites
 
-- **Python 3.10+** (this machine has 3.12)
+- **Python 3.10+**
 - **Google Chrome** installed (Selenium Manager / webdriver-manager will fetch a matching ChromeDriver)
 - App reachable: production URL, or local frontend (`npm start` in `frontend/`)
 
@@ -65,7 +67,7 @@ pytest tests/
 
 ```text
 selenium_tests/
-  .venv/                 # local virtualenv (gitignored)
+  .venv/                 # local virtualenv (gitignored - create after clone)
   requirements.txt       # selenium, webdriver-manager
   tests/                 # put your .py test scripts here
   README.md

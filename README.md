@@ -41,7 +41,7 @@ The system is split into three independently deployable parts:
 - Job-fit scoring. Paste any job description to see a match score, the keywords that are missing, and where to focus first.
 - Interview practice. Rehearse with an AI interviewer that asks role-specific questions and returns feedback in real time. Spoken questions are supported in Chrome and Edge through the browser Web Speech API.
 - Reviewable history. Past analyses and interview sessions are saved to the signed-in account.
-- Authentication. Email and password sign-up, Google sign-in, and JWT access and refresh tokens. New accounts are active immediately; a welcome email is sent in the background.
+- Authentication. Email and password sign-up with a 6-digit email verification code, Google sign-in, JWT access and refresh tokens, and account deletion from Settings. A welcome email is sent after email verification succeeds.
 - Theming. System-aware dark and light modes across the application.
 
 ## Architecture
@@ -68,7 +68,7 @@ Request flow:
 2. The React application calls the Flask API using the base URL in the REACT_APP_API_BASE build variable.
 3. The API validates the JWT, runs the requested operation, and reads or writes data in Neon over an SSL connection.
 4. For analysis and interview features, the API calls the Google Gemini endpoint and falls back to deterministic logic when no model key is configured.
-5. On registration, the API sends a welcome email through Resend over HTTPS (Render blocks outbound SMTP on the free tier).
+5. On email/password registration, the API emails a 6-digit verification code through Resend over HTTPS (Render blocks outbound SMTP on the free tier). After the user verifies the code, the API issues JWTs and sends a welcome email in the background.
 
 ## Technology Stack
 
@@ -100,7 +100,7 @@ AI-Resume-and-Career-Coach/
     public/                     Static assets and index.html
     vercel.json                 Single-page-application routing for Vercel
     Dockerfile                  Local development image
-  .github/workflows/            Keep-warm ping for Render free tier
+  .github/workflows/            Optional manual keep-warm workflow (see Deployment)
   backend/                      Flask REST API
     routes/                     auth, resume, analysis, and interview endpoints
     services/                   Business logic and email delivery
@@ -114,11 +114,16 @@ AI-Resume-and-Career-Coach/
     config.py                   Configuration loaded from environment variables
     requirements.txt            Python dependencies
     Dockerfile                  Local development image
+  selenium_tests/               Python Selenium WebDriver environment (assignment / E2E)
+    requirements.txt            selenium, webdriver-manager
+    tests/                      Place WebDriver scripts here
+    README.md                   Setup and run notes for the Selenium virtualenv
   docs/                         Project documentation and design notes
   docker-compose.yml            Local multi-container setup
   render.yaml                   Render deployment blueprint for the backend
-  start-arcc.bat                Local one-command startup script (Windows)
 ```
+
+Local Windows helpers such as `start-arcc.bat` and `clean-arcc.bat` may exist on a developer machine but are gitignored and are not part of the committed tree.
 
 ## Local Development
 
@@ -137,14 +142,9 @@ Create the two environment files. They are not committed to version control.
 
 The required keys are listed in the Environment Variables section below. For local development the database values should point at the containerized PostgreSQL instance.
 
-### Option A: One command (Windows)
+### Option A: Local Windows helper (optional)
 
-```
-cd AI-Resume-and-Career-Coach
-start-arcc.bat
-```
-
-This starts the PostgreSQL container, the backend, and the frontend.
+If you keep a local `start-arcc.bat` (gitignored), it can start the PostgreSQL container, backend, and frontend in one step. Otherwise use Option B or C below.
 
 ### Option B: Manual startup
 
@@ -193,7 +193,7 @@ The local PostgreSQL container is based on the postgres:18-alpine image, listens
 | JWT_ACCESS_TOKEN_EXPIRES | Access token lifetime in seconds. |
 | JWT_REFRESH_TOKEN_EXPIRES | Refresh token lifetime in seconds. |
 | GOOGLE_CLIENT_ID | Google OAuth web client ID. Must match the frontend value. |
-| FRONTEND_URL | Full URL of the frontend, including the scheme. Used in welcome email links. |
+| FRONTEND_URL | Full URL of the frontend, including the scheme. Used in post-verification welcome email links. |
 | RESEND_API_KEY | Resend API key (required on Render - SMTP is blocked on the free tier). |
 | RESEND_FROM | Sender address, e.g. `Resume Coach <support@resumecoach.app>` after domain verification in Resend. |
 | RESEND_REPLY_TO | Optional reply-to address, e.g. `arcc.resume@gmail.com`, so user replies reach your inbox. |
@@ -240,12 +240,14 @@ Authentication
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| POST | /api/auth/register | Create an account, sign in immediately, and send a welcome email. |
-| POST | /api/auth/login | Sign in with email and password. |
+| POST | /api/auth/register | Create an account (`email_verified=false`) and email a 6-digit verification code. Does not issue JWTs yet. |
+| POST | /api/auth/verify-code | Verify the emailed code, activate the account, issue JWTs, and send the welcome email. |
+| POST | /api/auth/resend-code | Request a fresh verification code (generic response; does not reveal whether the email exists). |
+| POST | /api/auth/login | Sign in with email and password. Unverified accounts get a new code and a verification-required response. |
 | POST | /api/auth/google | Sign in with a Google credential. |
-| GET | /api/auth/confirm/{token} | Optional email confirmation link from the welcome email (does not gate access). |
-| GET | /api/auth/me | Return the current user. |
+| GET | /api/auth/me | Return the current user (JWT required). |
 | POST | /api/auth/refresh | Issue a new access token from a refresh token. |
+| DELETE | /api/auth/account | Permanently delete the authenticated user and their data (JWT required). |
 
 Resume
 
@@ -299,7 +301,7 @@ Neon on the free plan does not expire and suspends the compute when idle, resumi
 4. Set RESEND_API_KEY, RESEND_FROM (for example `Resume Coach <support@resumecoach.app>`), FRONTEND_URL (`https://resumecoach.app`), and RESEND_REPLY_TO (for example `arcc.resume@gmail.com`). Render's free tier blocks outbound SMTP, so Gmail MAIL_* variables are not used in production.
 5. After the first deploy, copy the assigned service URL for use in the frontend configuration.
 
-The Render free plan spins the service down after a period of inactivity, so the first request after an idle period can take up to about one minute while the service starts. A GitHub Actions workflow (`.github/workflows/keep-warm.yml`) pings `/api/auth/health` every 10 minutes when `BACKEND_URL` is set as a repository variable.
+The Render free plan spins the service down after a period of inactivity, so the first request after an idle period can take up to about one minute while the service starts. Production keep-warm is handled by an external uptime monitor (for example UptimeRobot) that pings `/api/auth/health` on a short interval. The GitHub Actions workflow (`.github/workflows/keep-warm.yml`) is available for manual on-demand warming from the Actions tab; its scheduled cron is disabled because free-tier GitHub schedules are too unreliable for keep-warm.
 
 ### Frontend on Vercel
 
@@ -310,17 +312,32 @@ The Render free plan spins the service down after a period of inactivity, so the
 
 ### Connecting the services
 
-1. Set the backend FRONTEND_URL to the full public frontend URL, including https, so that welcome email links resolve correctly.
+1. Set the backend FRONTEND_URL to the full public frontend URL, including https, so that post-verification welcome email links resolve correctly.
 2. Verify the sending domain in Resend (resumecoach.app) and set RESEND_FROM to an address on that domain.
 3. In the Google Cloud console, add the public frontend URL to the authorized JavaScript origins for the OAuth client so that Google sign-in works in production.
 
 ## Testing
 
-- Frontend tests use the Create React App test runner:
-  ```
-  cd frontend
-  npm test
-  ```
+### Frontend (Jest via Create React App)
+
+```
+cd frontend
+npm test
+```
+
+### Selenium WebDriver (Python)
+
+An isolated environment lives under `selenium_tests/` (separate from backend production dependencies). See `selenium_tests/README.md` for virtualenv setup.
+
+```
+cd selenium_tests
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python tests\your_script.py
+```
+
+Scripts target the live site (`https://resumecoach.app`) or a local frontend at `http://localhost:3000`. Google Chrome is required; ChromeDriver is resolved automatically.
 
 ## Security Notes
 
