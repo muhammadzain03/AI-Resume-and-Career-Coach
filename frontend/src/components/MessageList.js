@@ -10,9 +10,8 @@ const msgIcon = (type) => {
   }
 };
 
-// Past this many seconds a slow response is almost always the free-tier
-// backend waking from a cold start, so we reassure the user it isn't stuck.
-const COLD_START_HINT_AFTER = 8;
+// Reassure the user the coach is still writing if a reply takes a while.
+const SLOW_HINT_AFTER = 8;
 
 // Memoized so typing in the answer bar (which lives in the parent) doesn't
 // re-reconcile the entire, growing transcript on every keystroke.
@@ -59,10 +58,9 @@ const MessageList = React.memo(function MessageList({ messages, loading, elapsed
             <div className="interview-typing" aria-label="Coach is thinking">
               <span /><span /><span />
             </div>
-            {elapsed >= COLD_START_HINT_AFTER && (
+            {elapsed >= SLOW_HINT_AFTER && (
               <p className="interview-typing-hint">
-                Still thinking ({elapsed}s) — the free-tier server may be waking
-                up. This is usually quick after the first request.
+                Thinking the next question for this role ({elapsed}s).
               </p>
             )}
           </div>

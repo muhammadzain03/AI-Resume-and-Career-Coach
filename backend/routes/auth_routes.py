@@ -1,4 +1,5 @@
 import logging
+import re
 import secrets
 from datetime import datetime, timedelta
 
@@ -29,6 +30,22 @@ CODE_TTL_MINUTES = 15
 def _generate_code():
     """6-digit numeric code, zero-padded (e.g. 042917)."""
     return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _is_test_email(email):
+    """True when the domain TLD is .test (RFC 6761, never a real inbox)."""
+    domain = (email or "").rsplit("@", 1)[-1]
+    return domain.rsplit(".", 1)[-1] == "test"
+
+
+def _test_code(email):
+    """The 6 digits at the end of a .test local part, or None.
+
+    rcc000000@example.test -> 000000. user@example.test -> None.
+    """
+    local = (email or "").split("@", 1)[0]
+    match = re.search(r"(\d{6})$", local)
+    return match.group(1) if match else None
 
 
 def _user_payload(row, first_login=None):
@@ -72,9 +89,12 @@ def _issue_session(cur, conn, user_row):
     return _token_response(user_row, first_login=first_login)
 
 
-def _start_verification(cur, conn, user_id):
-    """Store a fresh code + expiry on the user and return the code."""
-    code = _generate_code()
+def _start_verification(cur, conn, user_id, code=None):
+    """Store a code + expiry on the user and return the code.
+
+    A .test address passes its own 6-digit code. Everyone else gets a random one.
+    """
+    code = code or _generate_code()
     expires = datetime.utcnow() + timedelta(minutes=CODE_TTL_MINUTES)
     cur.execute(
         "UPDATE users SET verification_token=%s, verification_expires_at=%s WHERE id=%s",
@@ -82,6 +102,13 @@ def _start_verification(cur, conn, user_id):
     )
     conn.commit()
     return code
+
+
+def _send_code_email(email, name, code):
+    """Email the code. .test addresses are stored only - never sent."""
+    if _is_test_email(email):
+        return
+    send_verification_code_email(email, name, code)
 
 
 def _verification_pending_response(email, status=200):
@@ -110,6 +137,10 @@ def register():
         return jsonify({"error": "Email and password are required"}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if _is_test_email(email) and not _test_code(email):
+        return jsonify({
+            "error": "Test addresses must end with 6 digits, like rcc000000@example.test"
+        }), 400
 
     hashed = generate_password_hash(password)
 
@@ -131,7 +162,10 @@ def register():
             (email, hashed, name or None),
         )
         user_id = cur.fetchone()["id"]
-        code = _start_verification(cur, conn, user_id)
+        code = _start_verification(
+            cur, conn, user_id,
+            _test_code(email) if _is_test_email(email) else None,
+        )
     except Exception:
         logger.exception("Register failed for %s", email)
         return jsonify({"error": "Database error"}), 500
@@ -141,7 +175,7 @@ def register():
         if conn is not None:
             conn.close()
 
-    send_verification_code_email(email, name, code)
+    _send_code_email(email, name, code)
     return _verification_pending_response(email, status=201)
 
 
@@ -175,8 +209,11 @@ def login():
             return jsonify({"error": "Invalid credentials"}), 401
 
         if not user.get("email_verified"):
-            code = _start_verification(cur, conn, user["id"])
-            send_verification_code_email(email, user.get("name"), code)
+            code = _start_verification(
+                cur, conn, user["id"],
+                _test_code(email) if _is_test_email(email) else None,
+            )
+            _send_code_email(email, user.get("name"), code)
             return _verification_pending_response(email, status=403)
 
         return jsonify(_issue_session(cur, conn, user))
@@ -266,8 +303,11 @@ def google_auth():
         user_row = cur.fetchone()
 
         if not user_row.get("email_verified"):
-            code = _start_verification(cur, conn, user_row["id"])
-            send_verification_code_email(email, name or user_row.get("name"), code)
+            code = _start_verification(
+                cur, conn, user_row["id"],
+                _test_code(email) if _is_test_email(email) else None,
+            )
+            _send_code_email(email, name or user_row.get("name"), code)
             return _verification_pending_response(email)
 
         return jsonify(_issue_session(cur, conn, user_row))
@@ -348,8 +388,10 @@ def verify_code():
             conn.close()
 
     # The account is now verified and logged in - this is the moment the
-    # welcome email goes out (in the background).
-    send_welcome_email(email, user.get("name"))
+    # welcome email goes out (in the background). .test addresses are skipped
+    # so Resend never bounces a message to a domain that cannot exist.
+    if not _is_test_email(email):
+        send_welcome_email(email, user.get("name"))
     return jsonify(response)
 
 
@@ -373,8 +415,11 @@ def resend_code():
         )
         user = cur.fetchone()
         if user and not user.get("email_verified"):
-            code = _start_verification(cur, conn, user["id"])
-            send_verification_code_email(email, user.get("name"), code)
+            code = _start_verification(
+                cur, conn, user["id"],
+                _test_code(email) if _is_test_email(email) else None,
+            )
+            _send_code_email(email, user.get("name"), code)
     except Exception:
         logger.exception("Resend code failed for %s", email)
         return jsonify({"error": "Database error"}), 500

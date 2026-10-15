@@ -10,9 +10,8 @@ import { validateResumeFile } from "../utils/validation";
 import { toUserMessage } from "../utils/errors";
 import useElapsedSeconds from "../utils/useElapsedSeconds";
 
-// Past this many seconds a slow response is almost always the free-tier
-// backend waking from a cold start, so we reassure the user it isn't stuck.
-const COLD_START_HINT_AFTER = 8;
+// Reassure the user the analysis is still running if it takes a while.
+const SLOW_HINT_AFTER = 8;
 
 const AnalyzePage = () => {
   const [file, setFile] = useState(null);
@@ -234,10 +233,9 @@ const AnalyzePage = () => {
                     {progress || "Working..."}
                     <span className="analyze-progress__timer"> · {elapsed}s</span>
                   </span>
-                  {elapsed >= COLD_START_HINT_AFTER && (
+                  {elapsed >= SLOW_HINT_AFTER && (
                     <span className="analyze-progress__hint">
-                      Still working — the free-tier server may be waking up. This
-                      is usually quick after the first request.
+                      Matching your resume to this job. Longer descriptions can take a little longer.
                     </span>
                   )}
                 </div>

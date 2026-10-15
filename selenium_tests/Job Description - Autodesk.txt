@@ -1,0 +1,51 @@
+MCP/AI Developer (26WD99785) - Autodesk
+Location: Toronto, ON, CAN (remote with hybrid options)
+Pay: CAD $99,000-145,200 base + bonus/stock
+
+Job Requisition ID # 26WD99785
+
+Position Overview
+
+Autodesk's Visualization Solutions power high-performance 2D and 3D visualization experiences across our product portfolio. Our new team in Canada is bringing agentic AI to that experience - expanding our Viewer MCP (Model Context Protocol) from a basic capability layer into a production-grade agentic platform that lets users interact with their models in natural language.
+
+As an MCP/AI Developer you will build end-to-end features of that platform: MCP tools, agentic workflows, and the services behind them. You'll work hands-on across a modern, cloud-enabled web stack, integrating LLMs and models through APIs to deliver capabilities our users rely on. This is a strong software-engineering role with a clear runway to grow deep ML expertise as the team - and the org's AI competency - matures.
+
+Responsibilities
+- Implement and maintain clean, well-tested code for MCP tools, agentic features, and their supporting services (front-end and back-end), to team standards.
+- Integrate LLMs and models via APIs/SDKs to deliver agentic workflows, with attention to correctness, latency, and cost.
+- Help build the guardrails of agentic workflows - human-in-the-loop steps, traceability, and clear error handling.
+- Contribute to automated tests, evaluation harnesses for AI behavior, CI/CD pipelines, and developer tooling.
+- Debug and troubleshoot across the stack (agent/tool logic, APIs, web UI), collaborating with senior engineers and QA.
+- Work with Product and UX to translate requirements into technical tasks; surface risks and blockers early and seek mentorship.
+
+Minimum Qualifications
+- Master's in Computer Science / Computer Engineering, or a Bachelor's with 3+ years of relevant experience, or equivalent practical experience.
+- Hands-on experience building software in at least one mainstream language (TypeScript/JavaScript preferred for our stack).
+- Familiarity with modern web development (HTML/CSS/JS) and a framework such as React.
+- Sound understanding of testing, debugging, and code review; experience with Git and collaborative workflows (PRs, branches).
+- Exposure to building with LLMs or AI APIs - e.g. prompting, calling model/agent APIs, or simple agentic/RAG features (course, side-project, or work experience all count).
+- Strong problem-solving skills, eagerness to learn ML/AI deeply, and a collaborative mindset.
+- Experience with Agile practices; strong written and spoken English.
+
+Beneficial Qualifications
+- Node.js back-end development and RESTful APIs.
+- Familiarity with the Model Context Protocol (MCP), agent frameworks, or tool-calling patterns.
+- Cloud and CI/CD basics (AWS, Docker, GitHub Actions) and observability tooling.
+- Foundational ML knowledge (embeddings, vector search/RAG, model evaluation).
+- Exposure to 2D/3D rendering, visualization, or graphics concepts (WebGL/WebGPU).
+
+The Ideal Candidate
+You are a strong, hands-on engineer who is genuinely excited about AI and eager to go deep. You take ownership of features, write quality code, and communicate trade-offs clearly. You learn fast, ask good questions, and are motivated by building agentic capabilities that put powerful AI in the hands of real users.
+
+About Autodesk
+Welcome to Autodesk! Amazing things are created every day with our software - from the greenest buildings and cleanest cars to the smartest factories and biggest hit movies. We help innovators turn their ideas into reality, transforming not only how things are made, but what can be made.
+
+We take great pride in our culture here at Autodesk - it's at the core of everything we do. Our culture guides the way we work and treat each other, informs how we connect with customers and partners, and defines how we show up in the world.
+
+When you're an Autodesker, you can do meaningful work that helps build a better world designed and made for all. Ready to shape the world and your future? Join us!
+
+Salary transparency
+Salary is one part of Autodesk's competitive compensation package. For Canada based roles, we expect a starting base salary between $99,000 and $145,200. Offers are based on the candidate's experience and geographic location, and may exceed this range. In addition to base salaries, our compensation package may include annual cash bonuses, commissions for sales roles, stock grants, and a comprehensive benefits package.
+
+In-Person Onboarding and Identity Verification
+This role may require in-person onboarding and/or in-person ID verification.
