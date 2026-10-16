@@ -32,7 +32,7 @@ Add these once. Every script imports them.
 - `selenium_tests/support/pool.py`
   - `POOL`: the same 100 addresses the backend allowlists, `rcc000000@example.test` through `rcc000099@example.test`. For index `n`: email `rcc{n:06d}@example.test`, code `{n:06d}`, password `Rcc-test-pass-{n}`.
   - `claim_signup(driver)`: shuffles indices **1-99** (never 0), tries each through the signup form, and returns the first one the server accepts. A `409 Email already registered` means an earlier run used it, so it moves on. Raises a clear error if every address is taken or the server answers `429`.
-  - **No `.signup-seq` and no state file of any kind.** The server is the record of which addresses are used, so a crashed run, a fresh clone, and CI all behave identically. Shuffling rather than walking 1 to 99 in order keeps the probe count near 1 while the pool is mostly free - see the rate-limit note below.
+  - **No** `.signup-seq` **and no state file of any kind.** The server is the record of which addresses are used, so a crashed run, a fresh clone, and CI all behave identically. Shuffling rather than walking 1 to 99 in order keeps the probe count near 1 while the pool is mostly free - see the rate-limit note below.
 - `selenium_tests/support/bootstrap.py`
   - `ensure_account0(driver)`: signs up `rcc000000@example.test` with code `000000` and password `Rcc-test-pass-0`, and verifies it. If register answers `409` the account already exists and it exits cleanly, so the script is safe to re-run.
   - Runnable directly (`python support\bootstrap.py`). It is **not** one of the numbered test files - it is setup, and `claim_signup` deliberately never touches index 0.
@@ -60,13 +60,15 @@ No database credentials. No new Python packages. `selenium` and `webdriver-manag
 - Never deleted. `test_settings_delete_modal.py` opens the delete dialog and cancels; it never confirms.
 - After `docker compose down -v` the database is empty, so bootstrap has to run again before any logged-in script.
 
+
+
 ## Test-account escape hatch
 
 Lives in `backend/routes/auth_routes.py`. No schema change and no new dependency.
 
 **The allowlist is the rule.** `TEST_ACCOUNTS` is an explicit set of the 100 addresses `rcc000000@example.test` through `rcc000099@example.test`. Any other `.test` signup is rejected. A pattern such as "any `.test` address ending in 6 digits" is *not* the rule - that would accept roughly a million addresses on any `.test` domain from anyone who read this file.
 
-**Gated by `ALLOW_TEST_ACCOUNTS`.** Default off. With the flag off, an allowlisted address behaves like any other signup: random code, real send attempt. The hatch does not exist.
+**Gated by** `ALLOW_TEST_ACCOUNTS`**.** Default off. With the flag off, an allowlisted address behaves like any other signup: random code, real send attempt. The hatch does not exist.
 
 **Startup guard.** If `ALLOW_TEST_ACCOUNTS` is true while a production indicator is present (`RENDER_EXTERNAL_URL`, which Render sets automatically and `config.py` already reads), `create_app()` raises and the process refuses to boot with a clear message. Fail at boot, not inside a request handler. Locally that variable is unset, so the guard never fires.
 
@@ -98,6 +100,8 @@ Lives in `backend/routes/auth_routes.py`. No schema change and no new dependency
 - Settings: `h1` `Account`; profile email; button `Delete account`; dialog `#delete-account-title` `Delete your account?`; `#delete-confirm-input`; danger button stays disabled until the input is exactly `DELETE`; `Cancel` closes it
 - Theme lives on `document.documentElement` attribute `data-theme` (`light` or `dark`)
 
+
+
 ## 1. Logged-out scripts (18)
 
 No account. Each calls `open_fresh` first.
@@ -121,9 +125,11 @@ No account. Each calls `open_fresh` first.
 17. `test_protected_redirects.py` - for `/app`, `/app/analyze`, `/app/interview`, `/app/history`, `/app/settings`, `open_fresh` and assert the URL contains `/login`.
 18. `test_legacy_redirects.py` - `/verify-email` ends on `/login`. `/upload`, `/job`, `/dashboard`, `/interview`, and `/verify-pending` also end on `/login` because they forward into protected `/app` routes.
 
+
+
 ## 2. One full signup (1)
 
-19. `test_signup_full.py` does not read the database or an inbox.
+1. `test_signup_full.py` does not read the database or an inbox.
 
 Steps:
 
@@ -143,21 +149,23 @@ This creates a verified `.test` user. Logged-in scripts do not follow it. They a
 
 Each starts with `login(driver)` (except logout, which logs in first). Account 0 must already exist - run `support/bootstrap.py` once per database.
 
-20. `test_login_success.py` - after `login`, URL contains `/app` and `h1` contains `Welcome`.
-21. `test_overview_content.py` - visible text `Total Analyses`, `Average Score`, `Best Score`, `New Analysis`, `Practice Interview`, `View History`.
-22. `test_sidebar_nav.py` - click `Analyze` (URL `/app/analyze`, `#analyze-jd` present), `Interview` (`#interview-jd`), `History` (`h1` `Your activity`), `Settings` (`h1` `Account`), `Overview` (`Welcome`).
-23. `test_new_analysis_button.py` - click `New analysis`. URL `/app/analyze`.
-24. `test_analyze_page.py` - `#analyze-resume`, `#analyze-title`, `#analyze-jd` present. Button `Analyze Resume` is disabled (`disabled` attribute) before a file is chosen.
-25. `test_analyze_attach_file.py` - `send_keys(absolute path)` of `Muhammad Zain Resume - Autodesk.pdf` on `#analyze-resume`. Dropzone text contains that filename. `Analyze Resume` is enabled. Do not click it.
-26. `test_analyze_run.py` - log in, open `/app/analyze`, upload `Muhammad Zain Resume - Autodesk.pdf`, set `#analyze-title` to `MCP/AI Developer`, paste `Job Description - Autodesk.txt` into `#analyze-jd` with `set_react_value`, click `Analyze Resume`. Wait up to 120 seconds - the app is local but the Gemini call is not. Pass when `.score-ring__num` is a number and the page shows `Overall match against this job description`. Do not assert a specific score. This is the only script that spends a real LLM call, so it needs `LLM_API_KEY` in `backend/.env`.
-27. `test_interview_page.py` - heading `RCC Interview Coach`. `#interview-role`, `#interview-jd`, `#interview-context` present. `Begin interview` is disabled.
-28. `test_interview_jd_enables.py` - type `Software engineer role. Ask about React.` into `#interview-jd`. `Begin interview` becomes enabled. Do not click it.
-29. `test_history_page.py` - `h1` is `Your activity`. Then either `Nothing here yet` or at least one `.history-card`. If a card has class `history-card--clickable`, click it and assert the URL matches `/app/history/` plus an id, then a score or results heading is visible. If there is no card, that empty state is the pass. Which branch runs depends on whether `test_analyze_run.py` has already run against account 0, so both are valid expected results.
-30. `test_settings_profile.py` - `h1` `Account`. The profile block text contains `rcc000000@example.test`.
-31. `test_settings_delete_modal.py` - click `Delete account`. Dialog title `Delete your account?`. Danger button `Delete my account` is disabled. Type `DELETE` into `#delete-confirm-input`. Button becomes enabled. Click `Cancel`. Dialog is gone. Never confirm deletion.
-32. `test_dashboard_theme.py` - click `button.theme-toggle` inside `.dash-sidebar`. `data-theme` flips. Click again to restore the original value.
-33. `test_sidebar_collapse.py` - click the button `aria-label` `Collapse sidebar`. The same control's label becomes `Expand sidebar`. Click it again.
-34. `test_logout.py` - click `Log out`. URL contains `/login`. Open `/app` again. URL returns to `/login`.
+1. `test_login_success.py` - after `login`, URL contains `/app` and `h1` contains `Welcome`.
+2. `test_overview_content.py` - visible text `Total Analyses`, `Average Score`, `Best Score`, `New Analysis`, `Practice Interview`, `View History`.
+3. `test_sidebar_nav.py` - click `Analyze` (URL `/app/analyze`, `#analyze-jd` present), `Interview` (`#interview-jd`), `History` (`h1` `Your activity`), `Settings` (`h1` `Account`), `Overview` (`Welcome`).
+4. `test_new_analysis_button.py` - click `New analysis`. URL `/app/analyze`.
+5. `test_analyze_page.py` - `#analyze-resume`, `#analyze-title`, `#analyze-jd` present. Button `Analyze Resume` is disabled (`disabled` attribute) before a file is chosen.
+6. `test_analyze_attach_file.py` - `send_keys(absolute path)` of `Muhammad Zain Resume - Autodesk.pdf` on `#analyze-resume`. Dropzone text contains that filename. `Analyze Resume` is enabled. Do not click it.
+7. `test_analyze_run.py` - log in, open `/app/analyze`, upload `Muhammad Zain Resume - Autodesk.pdf`, set `#analyze-title` to `MCP/AI Developer`, paste `Job Description - Autodesk.txt` into `#analyze-jd` with `set_react_value`, click `Analyze Resume`. Wait up to 120 seconds - the app is local but the Gemini call is not. Pass when `.score-ring__num` is a number and the page shows `Overall match against this job description`. Do not assert a specific score. This is the only script that spends a real LLM call, so it needs `LLM_API_KEY` in `backend/.env`.
+8. `test_interview_page.py` - heading `RCC Interview Coach`. `#interview-role`, `#interview-jd`, `#interview-context` present. `Begin interview` is disabled.
+9. `test_interview_jd_enables.py` - type `Software engineer role. Ask about React.` into `#interview-jd`. `Begin interview` becomes enabled. Do not click it.
+10. `test_history_page.py` - `h1` is `Your activity`. Then either `Nothing here yet` or at least one `.history-card`. If a card has class `history-card--clickable`, click it and assert the URL matches `/app/history/` plus an id, then a score or results heading is visible. If there is no card, that empty state is the pass. Which branch runs depends on whether `test_analyze_run.py` has already run against account 0, so both are valid expected results.
+11. `test_settings_profile.py` - `h1` `Account`. The profile block text contains `rcc000000@example.test`.
+12. `test_settings_delete_modal.py` - click `Delete account`. Dialog title `Delete your account?`. Danger button `Delete my account` is disabled. Type `DELETE` into `#delete-confirm-input`. Button becomes enabled. Click `Cancel`. Dialog is gone. Never confirm deletion.
+13. `test_dashboard_theme.py` - click `button.theme-toggle` inside `.dash-sidebar`. `data-theme` flips. Click again to restore the original value.
+14. `test_sidebar_collapse.py` - click the button `aria-label` `Collapse sidebar`. The same control's label becomes `Expand sidebar`. Click it again.
+15. `test_logout.py` - click `Log out`. URL contains `/login`. Open `/app` again. URL returns to `/login`.
+
+
 
 ## 4. Backend unit test (1, not Selenium)
 
@@ -167,6 +175,8 @@ Each starts with `login(driver)` (except logout, which logs in first). Account 0
 - With the flag on, an unlisted `.test` address (`rcc999999@example.test`) is rejected.
 - With the flag **off**, an allowlisted address such as `rcc000001@example.test` gets a random code and is treated as an ordinary signup.
 - The startup guard raises when the flag is on alongside a production indicator.
+
+
 
 ## What this covers
 
