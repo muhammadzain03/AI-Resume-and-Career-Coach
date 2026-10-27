@@ -1,24 +1,26 @@
-# Selenium WebDriver tests (ENSF 519 - Assignment 01)
+# Selenium WebDriver environment (Python)
 
-Environment for Python Selenium WebDriver scripts against RCC
-([resumecoach.app](https://resumecoach.app) or local `http://localhost:3000`).
+Isolated virtualenv for end-to-end WebDriver scripts, kept separate from the backend
+production dependencies.
 
-Scripts only - **not** Selenium IDE.
+The full suite of 34 scripts, the shared helpers, the fixtures, and the ENSF 519
+Assignment 01 report live on the **`selenium-tests`** branch, which is deliberately not
+merged into `main`. That branch also carries a local-only signup shortcut for `.test`
+email addresses, which is the reason it stays out of production.
 
-The `.venv/` folder is gitignored. Create and activate it on each machine after cloning.
+```powershell
+git checkout selenium-tests
+```
+
+See `selenium_tests/README.md` on that branch for the full setup and run instructions.
 
 ## Setup (one-time)
 
 From this folder (`selenium_tests/`):
 
 ```powershell
-# Create virtual environment
 python -m venv .venv
-
-# Activate it (PowerShell)
 .\.venv\Scripts\Activate.ps1
-
-# Install Selenium + ChromeDriver helper
 pip install -r requirements.txt
 ```
 
@@ -28,47 +30,16 @@ If PowerShell blocks activation:
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-## Every time you work on tests
-
-```powershell
-cd "AI-Resume-and-Career-Coach\selenium_tests"
-.\.venv\Scripts\Activate.ps1
-```
-
-Your prompt should show `(.venv)`.
-
-## Verify the install
+Verify the install:
 
 ```powershell
 python -c "from selenium import webdriver; print('Selenium OK', webdriver.__name__)"
 ```
 
-## Running tests (once you add scripts)
-
-```powershell
-# Example - replace with your script name
-python tests\test_example.py
-```
-
-Or with pytest later (optional):
-
-```powershell
-pip install pytest
-pytest tests/
-```
-
 ## Prerequisites
 
-- **Python 3.10+**
-- **Google Chrome** installed (Selenium Manager / webdriver-manager will fetch a matching ChromeDriver)
-- App reachable: production URL, or local frontend (`npm start` in `frontend/`)
+- Python 3.10+
+- Google Chrome (Selenium Manager / webdriver-manager fetches a matching ChromeDriver)
+- A reachable app: the local frontend at `http://localhost:3000`, or `https://resumecoach.app`
 
-## Layout
-
-```text
-selenium_tests/
-  .venv/                 # local virtualenv (gitignored - create after clone)
-  requirements.txt       # selenium, webdriver-manager
-  tests/                 # put your .py test scripts here
-  README.md
-```
+`.venv/` and `.env` are gitignored. Create them on each machine after cloning.

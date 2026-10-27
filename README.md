@@ -5,6 +5,7 @@ RCC is a full-stack web application that helps job seekers improve their resumes
 ## Live Deployment
 
 - Application: https://resumecoach.app
+- Video walkthrough: https://www.loom.com/share/d2d889fa58424fd6ba123b97fb28605d
 - Frontend hosting: Vercel
 - Backend hosting: Render
 - Database hosting: Neon (managed PostgreSQL)
@@ -114,10 +115,9 @@ AI-Resume-and-Career-Coach/
     config.py                   Configuration loaded from environment variables
     requirements.txt            Python dependencies
     Dockerfile                  Local development image
-  selenium_tests/               Python Selenium WebDriver environment (assignment / E2E)
+  selenium_tests/               Python Selenium WebDriver environment (E2E)
     requirements.txt            selenium, webdriver-manager
-    tests/                      Place WebDriver scripts here
-    README.md                   Setup and run notes for the Selenium virtualenv
+    README.md                   Setup notes; the script suite lives on the selenium-tests branch
   docs/                         Project documentation and design notes
   docker-compose.yml            Local multi-container setup
   render.yaml                   Render deployment blueprint for the backend
@@ -334,10 +334,11 @@ cd selenium_tests
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python tests\your_script.py
 ```
 
-Scripts target the live site (`https://resumecoach.app`) or a local frontend at `http://localhost:3000`. Google Chrome is required; ChromeDriver is resolved automatically.
+Google Chrome is required; ChromeDriver is resolved automatically.
+
+The end-to-end suite itself - 34 scripts covering every route, the shared helpers, the test fixtures, and the ENSF 519 Assignment 01 report - lives on the `selenium-tests` branch, which is not merged into `main`. That branch adds a local-only signup shortcut for `.test` email addresses so the suite can verify accounts without an inbox, and keeping it unmerged is what keeps that shortcut out of production. The scripts there run against the local stack at `http://localhost:3000`.
 
 ## Security Notes
 
